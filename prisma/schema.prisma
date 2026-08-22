@@ -1,10 +1,6 @@
 // Prisma schema for the Starforge Developer Portal.
-//
-// Uses SQLite for zero-config local development. To move to AWS RDS Postgres
-// for production, change the datasource below to:
-//   provider = "postgresql"
-//   url      = env("DATABASE_URL")   // e.g. postgresql://user:pass@rds-host:5432/db
-// then run `npx prisma migrate deploy`.
+// Postgres (Neon, via Vercel Storage) in every environment — DATABASE_URL
+// is injected by the Vercel/Neon integration.
 
 generator client {
   provider      = "prisma-client-js"
@@ -14,7 +10,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
