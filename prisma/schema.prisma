@@ -1,0 +1,113 @@
+// Prisma schema for the Starforge Developer Portal.
+//
+// Uses SQLite for zero-config local development. To move to AWS RDS Postgres
+// for production, change the datasource below to:
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")   // e.g. postgresql://user:pass@rds-host:5432/db
+// then run `npx prisma migrate deploy`.
+
+generator client {
+  provider      = "prisma-client-js"
+  // "native" covers local dev; "rhel-openssl-3.0.x" is required for Vercel's
+  // serverless runtime (Amazon Linux 2023) in production.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  DEVELOPER
+  RESEARCHER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(DEVELOPER)
+
+  walletAddress String? @unique
+
+  tokenBalance Int @default(0)
+
+  onboardingCompletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions TokenTransaction[]
+  gpuSessions  GpuSession[]
+  skillOrders  SkillOrder[]
+}
+
+enum TransactionType {
+  SIGNUP_BONUS
+  WALLET_CONNECT_BONUS
+  GPU_RENTAL
+  SKILL_PURCHASE
+  AIRDROP
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// Ledger of STARFORGE token movements for a user. This is an off-chain,
+// database-backed balance for now. `txHash` / `status` are already modeled
+// so that a real on-chain transfer can be plugged in later (fill txHash once
+// the backend actually broadcasts a transaction) without a schema change.
+model TokenTransaction {
+  id     String             @id @default(cuid())
+  userId String
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type   TransactionType
+  amount Int // positive = credit, negative = debit
+  status TransactionStatus @default(COMPLETED)
+  txHash String? // populated once real on-chain transfers are wired up
+
+  note String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// A rented GPU compute session for training. Simulated provisioning today —
+// no real cloud instance is booted, but the reservation, pricing and token
+// debit are fully real and DB-backed.
+model GpuSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  gpuType   String // e.g. "RTX 4090", "A100 80GB", "H100"
+  hours     Int
+  pricePaid Int // total STARFORGE tokens paid
+
+  startedAt DateTime  @default(now())
+  endsAt    DateTime
+
+  @@index([userId])
+}
+
+// A purchased robot skill package, paid for in STARFORGE tokens.
+model SkillOrder {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skillId   String
+  skillName String
+  price     Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}

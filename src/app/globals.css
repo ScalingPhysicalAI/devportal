@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  --color-black: #050505;
+  --color-panel: #0a0805;
+  --color-panel-raised: #120e08;
+  --color-off-white: #e8e2d6;
+  --color-sand: #b89c72;
+  --color-sand-dark: #8a6f4a;
+  --color-sand-light: #d4b98a;
+  --color-text-muted: #6b6155;
+  --color-border: rgba(184, 156, 114, 0.18);
+  --color-border-strong: rgba(184, 156, 114, 0.35);
+  --color-success: #22c55e;
+  --color-error: #dc2626;
+
+  --font-display: var(--font-bebas-neue), "Arial Narrow", sans-serif;
+  --font-body: var(--font-barlow), "Helvetica Neue", Arial, sans-serif;
+  --font-technical: var(--font-space-mono), "Courier New", monospace;
+}
+
+@theme inline {
+  --color-black: var(--color-black);
+  --color-panel: var(--color-panel);
+  --color-panel-raised: var(--color-panel-raised);
+  --color-off-white: var(--color-off-white);
+  --color-sand: var(--color-sand);
+  --color-sand-dark: var(--color-sand-dark);
+  --color-sand-light: var(--color-sand-light);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-success: var(--color-success);
+  --color-error: var(--color-error);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-technical: var(--font-technical);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-black);
+  color: var(--color-off-white);
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--color-sand);
+  color: var(--color-black);
+}
+
+.text-display {
+  font-family: var(--font-display);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.text-technical {
+  font-family: var(--font-technical);
+  letter-spacing: 0.05em;
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(184, 156, 114, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(184, 156, 114, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.glow-sand {
+  box-shadow: 0 0 0 1px var(--color-border), 0 8px 40px -12px rgba(184, 156, 114, 0.25);
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
