@@ -5,9 +5,8 @@ import { Container } from "@/components/ui/Container";
 import { RigGraphic } from "@/components/graphics/RigGraphic";
 
 const stats = [
-  { label: "AI stack layers", value: "3" },
   { label: "Reasoning rate", value: "100 Hz" },
-  { label: "Signup reward", value: "20 SFT" },
+  { label: "Signup reward", value: "20 USDC" },
 ];
 
 const platformFeatures = [
@@ -37,24 +36,6 @@ const platformFeatures = [
   },
 ];
 
-const stack = [
-  {
-    layer: "System 2",
-    rate: "~1 Hz",
-    desc: "Vision-language-action model for high-level reasoning and task planning.",
-  },
-  {
-    layer: "System 1",
-    rate: "~10 Hz",
-    desc: "On-board foundation model handling real-time motion planning.",
-  },
-  {
-    layer: "System 0",
-    rate: "~100 Hz",
-    desc: "Microcontroller-level fine-motor control and tactile feedback.",
-  },
-];
-
 export default function LandingPage() {
   return (
     <>
@@ -75,12 +56,11 @@ export default function LandingPage() {
               <p className="mt-6 max-w-md text-base leading-relaxed text-off-white/70">
                 The developer platform for Buildo — Starforge&apos;s Physical
                 AI robot. Train it on your own data, rent GPU compute, buy
-                skills, and get rewarded in STARFORGE tokens for building
-                early.
+                skills, and get $20 credit for building early.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-4">
                 <Link href="/signup">
-                  <Button size="lg">Sign up as a developer</Button>
+                  <Button size="lg">Sign up</Button>
                 </Link>
                 <a
                   href="https://starforgerobotics.com/buildo/"
@@ -88,12 +68,12 @@ export default function LandingPage() {
                   rel="noreferrer"
                 >
                   <Button variant="secondary" size="lg">
-                    View Buildo
+                    Buy Buildo
                   </Button>
                 </a>
               </div>
 
-              <div className="mt-14 grid grid-cols-3 gap-6 max-w-md border-t border-border pt-6">
+              <div className="mt-14 grid grid-cols-2 gap-6 max-w-md border-t border-border pt-6">
                 {stats.map((s) => (
                   <div key={s.label}>
                     <p className="text-technical text-xl text-sand">{s.value}</p>
@@ -105,51 +85,6 @@ export default function LandingPage() {
 
             <div className="relative mx-auto aspect-square w-full max-w-md animate-fade-up [animation-delay:120ms]">
               <RigGraphic className="h-full w-full" />
-            </div>
-          </div>
-        </Container>
-      </section>
-
-      {/* Buildo / three-layer stack */}
-      <section id="buildo" className="border-t border-border py-24">
-        <Container>
-          <div className="grid gap-14 lg:grid-cols-[1fr_1.2fr] lg:items-start">
-            <div>
-              <p className="text-technical text-xs text-sand mb-4">BUILDO ROBOT</p>
-              <h2 className="text-display text-4xl text-off-white leading-tight">
-                One robot.
-                <br />
-                Three layers of intelligence.
-              </h2>
-              <p className="mt-5 text-sm leading-relaxed text-off-white/70 max-w-sm">
-                Buildo pairs a wearable dexterous hand and open FOC firmware
-                with a hierarchical AI architecture — built for developers
-                and researchers who want to own the full stack, not just call
-                an API.
-              </p>
-              <a
-                href="https://starforgerobotics.com/buildo/"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 inline-block text-sm text-sand hover:underline"
-              >
-                Read the full spec →
-              </a>
-            </div>
-
-            <div className="space-y-px overflow-hidden rounded-sm border border-border">
-              {stack.map((s) => (
-                <div
-                  key={s.layer}
-                  className="flex flex-col gap-1 bg-panel px-6 py-6 sm:flex-row sm:items-baseline sm:justify-between"
-                >
-                  <div>
-                    <p className="text-display text-xl text-off-white">{s.layer}</p>
-                    <p className="mt-1 text-sm text-text-muted max-w-sm">{s.desc}</p>
-                  </div>
-                  <p className="text-technical text-sm text-sand shrink-0">{s.rate}</p>
-                </div>
-              ))}
             </div>
           </div>
         </Container>
@@ -194,12 +129,11 @@ export default function LandingPage() {
             <div className="relative">
               <p className="text-technical text-xs text-sand mb-4">EARLY DEVELOPER REWARDS</p>
               <h2 className="text-display text-4xl sm:text-5xl text-off-white max-w-2xl mx-auto leading-tight">
-                Sign up, connect a wallet, get STARFORGE tokens.
+                Sign up and get $20 USDC credit.
               </h2>
               <p className="mt-5 max-w-lg mx-auto text-sm leading-relaxed text-off-white/70">
-                Early developer accounts are credited with STARFORGE tokens
-                on wallet connect — spend them on GPU compute and robot
-                skills anywhere in the portal.
+                Early developer accounts are credited with $20 USDC — spend
+                it on GPU compute and robot skills anywhere in the portal.
               </p>
               <div className="mt-9 flex justify-center">
                 <Link href="/signup">

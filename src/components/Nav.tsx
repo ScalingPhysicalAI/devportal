@@ -8,7 +8,6 @@ import { MobileMenu } from "@/components/MobileMenu";
 
 const links = [
   { href: "/#platform", label: "Platform" },
-  { href: "/#buildo", label: "Buildo" },
   { href: "/#rewards", label: "Rewards" },
 ];
 

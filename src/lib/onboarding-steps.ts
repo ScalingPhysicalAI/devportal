@@ -10,23 +10,22 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "welcome",
     title: "Welcome to Starforge",
-    body: "Quick tour of the developer portal — connect a wallet, train your Buildo robot, rent GPU compute, and pick up new skills. Takes about a minute.",
+    body: "Quick tour of the developer portal — test Buildo in simulation, train your robot, rent GPU compute, and pick up new skills. Takes about a minute.",
   },
   {
-    id: "connect-wallet",
-    title: "Connect your wallet",
-    body: "Link an Ethereum wallet here to claim your early-developer STARFORGE token reward — it's credited instantly.",
-    target: "connect-wallet",
+    id: "simulation",
+    title: "Test out Buildo on MuJoCo",
+    body: "Run Buildo in a physics simulation environment before deploying to hardware. Your $20 USDC credit is ready to use.",
   },
   {
     id: "check-email",
     title: "Check your inbox",
-    body: "We've sent a confirmation email to the address you signed up with. Keep it — it's where reward and activity notices land.",
+    body: "We've sent a confirmation email to the address you signed up with. Keep it — it's where activity notices land.",
   },
   {
     id: "nav-overview",
     title: "Overview",
-    body: "Your token balance, GPU sessions, skills owned, and recent activity, all in one place.",
+    body: "Your credit balance, GPU sessions, skills owned, and recent activity, all in one place.",
     target: "nav-overview",
   },
   {
@@ -44,13 +43,13 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "nav-gpu",
     title: "GPU compute",
-    body: "Rent on-demand GPU time, paid in STARFORGE tokens, to train and evaluate your models.",
+    body: "Rent on-demand GPU time, paid with your credit balance, to train and evaluate your models.",
     target: "nav-gpu",
   },
   {
     id: "nav-skills",
     title: "Skills",
-    body: "Buy pre-built skill packages with STARFORGE tokens and load them onto your Buildo robot.",
+    body: "Buy pre-built skill packages with your credit balance and load them onto your Buildo robot.",
     target: "nav-skills",
   },
   {

@@ -53,8 +53,8 @@ export default function SignupPage() {
           Join the developer portal
         </h1>
         <p className="mt-3 text-sm text-off-white/70">
-          Sign up as a developer or researcher to start training Buildo,
-          renting GPUs, and earning STARFORGE tokens.
+          Sign up to start training Buildo, renting GPUs, and earning $20
+          USDC credit.
         </p>
 
         <form

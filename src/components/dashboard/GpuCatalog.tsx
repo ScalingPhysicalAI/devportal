@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
 import { rentGpu } from "@/lib/api-client";
-import { GPU_CATALOG, TOKEN_SYMBOL, type GpuType } from "@/lib/constants";
+import { GPU_CATALOG, type GpuType } from "@/lib/constants";
 
 export function GpuCatalog() {
   const router = useRouter();
@@ -42,8 +42,8 @@ export function GpuCatalog() {
             <p className="text-technical text-xs text-sand mt-1">{gpu.vram} VRAM</p>
             <p className="mt-3 text-sm text-text-muted flex-1">{gpu.desc}</p>
             <p className="mt-4 text-technical text-lg text-off-white">
-              {gpu.pricePerHour} {TOKEN_SYMBOL}
-              <span className="text-sm text-text-muted"> /hr</span>
+              ${gpu.pricePerHour}
+              <span className="text-sm text-text-muted"> /hr credit</span>
             </p>
 
             <div className="mt-4 flex items-center gap-2">
@@ -70,7 +70,7 @@ export function GpuCatalog() {
             >
               {renting === gpu.type && mutation.isPending
                 ? "Renting…"
-                : `Rent for ${gpu.pricePerHour * hours[gpu.type]} ${TOKEN_SYMBOL}`}
+                : `Rent for $${gpu.pricePerHour * hours[gpu.type]} credit`}
             </Button>
           </div>
         ))}
