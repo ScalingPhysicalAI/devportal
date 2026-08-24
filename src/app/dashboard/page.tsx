@@ -29,7 +29,7 @@ export default async function DashboardOverviewPage({
     <div className="max-w-5xl">
       {welcome === "1" && (
         <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
-          <p className="text-sm text-off-white">
+          <p className="text-sm text-off-white break-words">
             Welcome, {user.name} — your account is set up. Check your inbox for a verification email to claim 20 free credits.
           </p>
         </div>
@@ -37,7 +37,7 @@ export default async function DashboardOverviewPage({
 
       {verified === "1" && (
         <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
-          <p className="text-sm text-off-white">
+          <p className="text-sm text-off-white break-words">
             Email verified — <strong>20 STARFORGE credits</strong> have been added to your account.
           </p>
         </div>
@@ -45,7 +45,7 @@ export default async function DashboardOverviewPage({
 
       {verified === "expired" && (
         <div className="mb-8 rounded-sm border border-amber-500/30 bg-amber-500/5 px-5 py-4">
-          <p className="text-sm text-off-white">
+          <p className="text-sm text-off-white break-words">
             That verification link has expired. Please contact support to get a new one.
           </p>
         </div>
@@ -53,7 +53,7 @@ export default async function DashboardOverviewPage({
 
       {verified === "invalid" && (
         <div className="mb-8 rounded-sm border border-red-500/30 bg-red-500/5 px-5 py-4">
-          <p className="text-sm text-off-white">
+          <p className="text-sm text-off-white break-words">
             Invalid verification link. Please check your email or contact support.
           </p>
         </div>
@@ -107,10 +107,10 @@ export default async function DashboardOverviewPage({
               <tbody>
                 {transactions.map((tx) => (
                   <tr key={tx.id} className="border-b border-border last:border-0 bg-panel">
-                    <td className="px-5 py-3.5 text-off-white/80">
-                      {transactionLabel(tx.type)}
+                    <td className="px-5 py-3.5 text-off-white/80 max-w-xs">
+                      <span className="break-words">{transactionLabel(tx.type)}</span>
                       {tx.note && (
-                        <span className="ml-2 text-text-muted">— {tx.note}</span>
+                        <span className="ml-2 text-text-muted break-words">— {tx.note}</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-right text-technical whitespace-nowrap">

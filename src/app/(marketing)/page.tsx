@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/Container";
 import { RigGraphic } from "@/components/graphics/RigGraphic";
 
 const stats = [
-  { label: "Reasoning rate", value: "100 Hz" },
+  { label: "Rate", value: "100 Hz" },
   { label: "Signup reward", value: "20 USDC" },
 ];
 
