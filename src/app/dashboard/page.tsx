@@ -10,9 +10,9 @@ import { Button } from "@/components/ui/Button";
 export default async function DashboardOverviewPage({
   searchParams,
 }: {
-  searchParams: Promise<{ welcome?: string }>;
+  searchParams: Promise<{ welcome?: string; verified?: string }>;
 }) {
-  const [user, { welcome }] = await Promise.all([getCurrentUser(), searchParams]);
+  const [user, { welcome, verified }] = await Promise.all([getCurrentUser(), searchParams]);
   if (!user) return null;
 
   const [transactions, gpuCount, skillCount] = await Promise.all([
@@ -30,8 +30,31 @@ export default async function DashboardOverviewPage({
       {welcome === "1" && (
         <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
           <p className="text-sm text-off-white">
-            Welcome, {user.name} — your account is set up. Check your inbox
-            for a confirmation email. Your $20 USDC credit has been added.
+            Welcome, {user.name} — your account is set up. Check your inbox for a verification email to claim 20 free credits.
+          </p>
+        </div>
+      )}
+
+      {verified === "1" && (
+        <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
+          <p className="text-sm text-off-white">
+            Email verified — <strong>20 STARFORGE credits</strong> have been added to your account.
+          </p>
+        </div>
+      )}
+
+      {verified === "expired" && (
+        <div className="mb-8 rounded-sm border border-amber-500/30 bg-amber-500/5 px-5 py-4">
+          <p className="text-sm text-off-white">
+            That verification link has expired. Please contact support to get a new one.
+          </p>
+        </div>
+      )}
+
+      {verified === "invalid" && (
+        <div className="mb-8 rounded-sm border border-red-500/30 bg-red-500/5 px-5 py-4">
+          <p className="text-sm text-off-white">
+            Invalid verification link. Please check your email or contact support.
           </p>
         </div>
       )}

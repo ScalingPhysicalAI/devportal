@@ -1,5 +1,6 @@
 const TRANSACTION_LABELS: Record<string, string> = {
   SIGNUP_BONUS: "Signup bonus",
+  EMAIL_VERIFY_BONUS: "Email verification reward",
   WALLET_CONNECT_BONUS: "Wallet connect reward",
   GPU_RENTAL: "GPU rental",
   SKILL_PURCHASE: "Skill purchase",

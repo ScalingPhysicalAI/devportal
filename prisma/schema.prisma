@@ -30,6 +30,10 @@ model User {
 
   tokenBalance Int @default(0)
 
+  emailVerified       Boolean   @default(false)
+  emailVerifyToken    String?   @unique
+  emailVerifyExpiry   DateTime?
+
   onboardingCompletedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -42,6 +46,7 @@ model User {
 
 enum TransactionType {
   SIGNUP_BONUS
+  EMAIL_VERIFY_BONUS
   WALLET_CONNECT_BONUS
   GPU_RENTAL
   SKILL_PURCHASE
