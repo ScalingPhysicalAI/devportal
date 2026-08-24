@@ -22,7 +22,7 @@ export function TopBar({ user }: { user: SafeUser }) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-black/90 px-6 backdrop-blur">
+    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border bg-black/90 px-6 backdrop-blur">
       <Link href="/dashboard">
         <Logo />
       </Link>

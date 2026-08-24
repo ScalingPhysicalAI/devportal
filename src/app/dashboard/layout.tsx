@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <OnboardingProvider startAutomatically={!user.onboardingCompletedAt}>
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen w-full flex-col">
         <TopBar user={user} />
         <MobileTabs />
         <div className="flex flex-1">
