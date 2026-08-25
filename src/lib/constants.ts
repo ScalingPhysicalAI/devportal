@@ -1,4 +1,4 @@
-export const TOKEN_SYMBOL = "Credit";
+export const TOKEN_SYMBOL = "SFT";
 export const EARLY_WALLET_REWARD = 20;
 
 export const GPU_CATALOG = [

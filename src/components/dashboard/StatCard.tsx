@@ -12,7 +12,7 @@ export function StatCard({
       <p className="text-technical text-[11px] text-text-muted uppercase">{label}</p>
       <p className="mt-2 text-display text-3xl text-off-white">
         {value}
-        {suffix && <span className="ml-1 text-base text-sand">{suffix}</span>}
+        {suffix && <span className="ml-1 text-sm text-text-muted">{suffix}</span>}
       </p>
     </div>
   );

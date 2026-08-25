@@ -6,7 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/Button";
 import { buySkill } from "@/lib/api-client";
-import { SKILLS_CATALOG } from "@/lib/constants";
+import { SKILLS_CATALOG, TOKEN_SYMBOL } from "@/lib/constants";
 
 export function SkillsCatalog({ ownedSkillIds }: { ownedSkillIds: string[] }) {
   const router = useRouter();
@@ -46,7 +46,7 @@ export function SkillsCatalog({ ownedSkillIds }: { ownedSkillIds: string[] }) {
               <p className="mt-2 text-display text-xl text-off-white">{skill.name}</p>
               <p className="mt-2 text-sm text-text-muted flex-1">{skill.desc}</p>
               <p className="mt-4 text-technical text-lg text-off-white">
-                ${skill.price} <span className="text-sm text-text-muted">credit</span>
+                {skill.price} <span className="text-sm text-text-muted">{TOKEN_SYMBOL}</span>
               </p>
               <Button
                 className="mt-4"

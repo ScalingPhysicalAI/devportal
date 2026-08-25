@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatDate, transactionLabel } from "@/lib/format";
+import { TOKEN_SYMBOL } from "@/lib/constants";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SimulationCard } from "@/components/dashboard/SimulationCard";
 import { Button } from "@/components/ui/Button";
@@ -65,7 +66,7 @@ export default async function DashboardOverviewPage({
       </h1>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-3">
-        <StatCard label="Credit balance" value={`$${user.tokenBalance}`} />
+        <StatCard label="Credit balance" value={user.tokenBalance} suffix={TOKEN_SYMBOL} />
         <StatCard label="GPU sessions" value={gpuCount} />
         <StatCard label="Skills owned" value={skillCount} />
       </div>
@@ -115,7 +116,7 @@ export default async function DashboardOverviewPage({
                     </td>
                     <td className="px-5 py-3.5 text-right text-technical whitespace-nowrap">
                       <span className={tx.amount >= 0 ? "text-success" : "text-off-white/70"}>
-                        {tx.amount >= 0 ? "+" : ""}${Math.abs(tx.amount)} credit
+                        {tx.amount >= 0 ? "+" : ""}{Math.abs(tx.amount)} {TOKEN_SYMBOL}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right text-text-muted whitespace-nowrap">
