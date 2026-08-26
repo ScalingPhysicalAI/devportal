@@ -5,7 +5,7 @@ import { Container } from "@/components/ui/Container";
 import { RigGraphic } from "@/components/graphics/RigGraphic";
 
 const stats = [
-  { label: "20$ credit", value: "Get 20$ credit that you can use on the platform for signing up today" },
+  { value: "20$ credit", label: "Get 20$ credit that you can use on the platform for signing up today" },
 ];
 
 const platformFeatures = [
