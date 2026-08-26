@@ -2,7 +2,7 @@
 
 The developer platform for **Buildo**, Starforge Robotics' Physical AI robot.
 Developers and researchers sign up, connect a wallet, train Buildo, rent GPU
-compute, and buy skills — paid for in STARFORGE (SFT) tokens.
+compute, and buy skills — paid for in $ credit.
 
 Full-stack Next.js app (App Router) — one deployable unit for both the
 frontend and the API.
@@ -14,7 +14,7 @@ frontend and the API.
 | Signup / login / logout | **Live.** Real auth (bcrypt + signed JWT session cookie), real Postgres/SQLite-backed accounts. |
 | Welcome email on signup | **Live.** Sends via nodemailer; falls back to a free Ethereal test inbox (preview URL logged to console) if no SMTP is configured. |
 | Wallet connect | **Live.** Real browser wallet connection (MetaMask etc. via wagmi), address is linked to the account in the DB. |
-| STARFORGE token balance | **Live, but off-chain.** A `tokenBalance` column in the DB — credited 20 SFT on first wallet connect, debited on GPU rental / skill purchase. This is a real ledger (`TokenTransaction` table), just not on-chain yet. |
+| Credit balance | **Live, but off-chain.** A `tokenBalance` column in the DB — credited 20$ on first wallet connect, debited on GPU rental / skill purchase. This is a real ledger (`TokenTransaction` table), just not on-chain yet. |
 | GPU rental / skills marketplace | **Live.** Real DB transactions debit the token balance; no real GPU is provisioned and no skill is actually deployed (there's no paired robot hardware yet). |
 | Robot pairing / telemetry | **UI preview only** — no hardware integration yet. |
 | Train on your own dataset | **UI only** — file picker works client-side, no upload/training pipeline yet. |
@@ -40,7 +40,7 @@ npm run dev
 
 Open http://localhost:3000. Sign up, then connect a wallet from the
 dashboard (needs a browser extension wallet like MetaMask installed) to see
-the 20 SFT reward credit.
+the 20$ reward credit.
 
 No SMTP setup is required to try the welcome email locally — the first time
 one is sent, the server logs a line like:

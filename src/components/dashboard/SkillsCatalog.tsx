@@ -46,7 +46,7 @@ export function SkillsCatalog({ ownedSkillIds }: { ownedSkillIds: string[] }) {
               <p className="mt-2 text-display text-xl text-off-white">{skill.name}</p>
               <p className="mt-2 text-sm text-text-muted flex-1">{skill.desc}</p>
               <p className="mt-4 text-technical text-lg text-off-white">
-                {skill.price} <span className="text-sm text-text-muted">{TOKEN_SYMBOL}</span>
+                {skill.price}{TOKEN_SYMBOL} <span className="text-sm text-text-muted">credit</span>
               </p>
               <Button
                 className="mt-4"

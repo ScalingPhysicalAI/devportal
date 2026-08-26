@@ -6,7 +6,7 @@ import { RigGraphic } from "@/components/graphics/RigGraphic";
 
 const stats = [
   { label: "Rate", value: "100 Hz" },
-  { label: "Signup reward", value: "20 SFT" },
+  { label: "Signup reward", value: "20$ credit" },
 ];
 
 const platformFeatures = [
@@ -129,10 +129,10 @@ export default function LandingPage() {
             <div className="relative">
               <p className="text-technical text-xs text-sand mb-4">EARLY DEVELOPER REWARDS</p>
               <h2 className="text-display text-4xl sm:text-5xl text-off-white max-w-2xl mx-auto leading-tight">
-                Sign up and get 20 STARFORGE credits.
+                Sign up and get 20$ credit.
               </h2>
               <p className="mt-5 max-w-lg mx-auto text-sm leading-relaxed text-off-white/70">
-                Early developer accounts are credited with 20 STARFORGE tokens — spend
+                Early developer accounts are credited with 20$ credit — spend
                 it on GPU compute and robot skills anywhere in the portal.
               </p>
               <div className="mt-9 flex justify-center">

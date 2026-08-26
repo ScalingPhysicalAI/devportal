@@ -64,7 +64,7 @@ export function WalletConnectCard({ initialUser }: { initialUser: SafeUser }) {
     <div className="relative rounded-sm border border-border-strong bg-panel p-7">
       {rewardToast !== null && (
         <div className="absolute -top-3 right-6 rounded-sm border border-success/40 bg-black px-3 py-1.5 text-xs text-success animate-fade-up">
-          + {rewardToast} {TOKEN_SYMBOL} added to your account
+          + {rewardToast}{TOKEN_SYMBOL} credit added to your account
         </div>
       )}
 
@@ -78,7 +78,7 @@ export function WalletConnectCard({ initialUser }: { initialUser: SafeUser }) {
           </p>
           <p className="mt-4 text-sm text-text-muted max-w-sm">
             Your early-signup reward has been credited. Balances update
-            instantly as you spend {TOKEN_SYMBOL} across the portal.
+            instantly as you spend your credit across the portal.
           </p>
           {isConnected && (
             <Button
@@ -95,8 +95,8 @@ export function WalletConnectCard({ initialUser }: { initialUser: SafeUser }) {
         <>
           <p className="text-display text-2xl text-off-white">Connect your wallet</p>
           <p className="mt-2 text-sm text-text-muted max-w-sm">
-            Link an Ethereum wallet to claim your {EARLY_WALLET_REWARD}{" "}
-            {TOKEN_SYMBOL} early-developer reward.
+            Link an Ethereum wallet to claim your {EARLY_WALLET_REWARD}
+            {TOKEN_SYMBOL} early-developer credit.
           </p>
           <Button
             data-tour="connect-wallet"

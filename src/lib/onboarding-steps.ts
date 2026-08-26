@@ -15,7 +15,7 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "simulation",
     title: "Test out Buildo on MuJoCo",
-    body: "Run Buildo in a physics simulation environment before deploying to hardware. Your 20 STARFORGE credits are ready to use.",
+    body: "Run Buildo in a physics simulation environment before deploying to hardware. Your 20$ credit is ready to use.",
   },
   {
     id: "check-email",

@@ -19,8 +19,8 @@ export default async function GpuPage() {
       <p className="text-technical text-xs text-sand mb-2">COMPUTE</p>
       <h1 className="text-display text-4xl text-off-white">Rent GPU compute</h1>
       <p className="mt-3 max-w-lg text-sm text-off-white/70">
-        Pay in {TOKEN_SYMBOL} for on-demand GPU time to train and evaluate
-        your models.
+        Pay with your credit balance for on-demand GPU time to train and
+        evaluate your models.
       </p>
 
       <div className="mt-10">
@@ -42,7 +42,7 @@ export default async function GpuPage() {
                     <td className="px-5 py-3.5 text-off-white/80">{s.gpuType}</td>
                     <td className="px-5 py-3.5 text-text-muted">{s.hours}h</td>
                     <td className="px-5 py-3.5 text-technical text-right">
-                      {s.pricePaid} {TOKEN_SYMBOL}
+                      {s.pricePaid}{TOKEN_SYMBOL}
                     </td>
                     <td className="px-5 py-3.5 text-right text-text-muted whitespace-nowrap">
                       {formatDate(s.startedAt)}

@@ -59,7 +59,7 @@ enum TransactionStatus {
   FAILED
 }
 
-// Ledger of STARFORGE token movements for a user. This is an off-chain,
+// Ledger of $ credit movements for a user. This is an off-chain,
 // database-backed balance for now. `txHash` / `status` are already modeled
 // so that a real on-chain transfer can be plugged in later (fill txHash once
 // the backend actually broadcasts a transaction) without a schema change.
@@ -90,7 +90,7 @@ model GpuSession {
 
   gpuType   String // e.g. "RTX 4090", "A100 80GB", "H100"
   hours     Int
-  pricePaid Int // total STARFORGE tokens paid
+  pricePaid Int // total $ credit paid
 
   startedAt DateTime  @default(now())
   endsAt    DateTime
@@ -98,7 +98,7 @@ model GpuSession {
   @@index([userId])
 }
 
-// A purchased robot skill package, paid for in STARFORGE tokens.
+// A purchased robot skill package, paid for in $ credit.
 model SkillOrder {
   id     String @id @default(cuid())
   userId String
