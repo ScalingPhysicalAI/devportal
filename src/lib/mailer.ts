@@ -42,14 +42,14 @@ function verifyEmailHtml(name: string, verifyUrl: string) {
       <td style="padding:36px 32px 8px 32px;">
         <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;color:#111111;">Verify your email, ${name}.</h1>
         <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
-          Click the button below to verify your email address and receive <strong>20 STARFORGE credits</strong> as a bonus.
+          Click the button below to verify your email address and receive <strong>20$ credit</strong> as a bonus.
         </p>
         <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
           This link expires in 24 hours.
         </p>
         <a href="${verifyUrl}"
            style="display:inline-block;background-color:#b89c72;color:#050505;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:4px;">
-          Verify email &amp; claim 20 credits
+          Verify email &amp; claim 20$ credit
         </a>
       </td>
     </tr>`);
@@ -64,7 +64,7 @@ function welcomeEmailHtml(name: string) {
           Your Starforge Developer Portal account is registered. From here you can connect a wallet, train your Buildo robot, rent GPU compute, and pick up new skills.
         </p>
         <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
-          Connect your wallet from the dashboard to claim your early-signup STARFORGE token reward.
+          Connect your wallet from the dashboard to claim your early-signup 20$ credit reward.
         </p>
         <a href="${APP_URL}/dashboard"
            style="display:inline-block;background-color:#b89c72;color:#050505;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:4px;">
@@ -126,9 +126,9 @@ export async function sendVerificationEmail(to: string, name: string, token: str
   const verifyUrl = `${APP_URL}/api/auth/verify-email?token=${token}`;
   await send(
     to,
-    "Verify your Starforge email — claim 20 credits",
+    "Verify your Starforge email — claim 20$ credit",
     verifyEmailHtml(name, verifyUrl),
-    `Verify your email and claim 20 STARFORGE credits: ${verifyUrl}\n\nThis link expires in 24 hours.`,
+    `Verify your email and claim 20$ credit: ${verifyUrl}\n\nThis link expires in 24 hours.`,
   );
 }
 

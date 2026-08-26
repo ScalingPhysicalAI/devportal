@@ -31,7 +31,7 @@ export default async function DashboardOverviewPage({
       {welcome === "1" && (
         <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
           <p className="text-sm text-off-white break-words">
-            Welcome, {user.name} — your account is set up. Check your inbox for a verification email to claim 20 free credits.
+            Welcome, {user.name} — your account is set up. Check your inbox for a verification email to claim 20{TOKEN_SYMBOL} free credit.
           </p>
         </div>
       )}
@@ -39,7 +39,7 @@ export default async function DashboardOverviewPage({
       {verified === "1" && (
         <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
           <p className="text-sm text-off-white break-words">
-            Email verified — <strong>20 STARFORGE credits</strong> have been added to your account.
+            Email verified — <strong>20{TOKEN_SYMBOL} credit</strong> has been added to your account.
           </p>
         </div>
       )}
@@ -66,7 +66,7 @@ export default async function DashboardOverviewPage({
       </h1>
 
       <div className="mt-8 grid gap-5 sm:grid-cols-3">
-        <StatCard label="Credit balance" value={user.tokenBalance} suffix={TOKEN_SYMBOL} />
+        <StatCard label="Credit balance" value={`${user.tokenBalance}${TOKEN_SYMBOL}`} />
         <StatCard label="GPU sessions" value={gpuCount} />
         <StatCard label="Skills owned" value={skillCount} />
       </div>
@@ -116,7 +116,7 @@ export default async function DashboardOverviewPage({
                     </td>
                     <td className="px-5 py-3.5 text-right text-technical whitespace-nowrap">
                       <span className={tx.amount >= 0 ? "text-success" : "text-off-white/70"}>
-                        {tx.amount >= 0 ? "+" : ""}{Math.abs(tx.amount)} {TOKEN_SYMBOL}
+                        {tx.amount >= 0 ? "+" : ""}{Math.abs(tx.amount)}{TOKEN_SYMBOL}
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-right text-text-muted whitespace-nowrap">

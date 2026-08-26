@@ -42,7 +42,7 @@ export function GpuCatalog() {
             <p className="text-technical text-xs text-sand mt-1">{gpu.vram} VRAM</p>
             <p className="mt-3 text-sm text-text-muted flex-1">{gpu.desc}</p>
             <p className="mt-4 text-technical text-lg text-off-white">
-              {gpu.pricePerHour} {TOKEN_SYMBOL}
+              {gpu.pricePerHour}{TOKEN_SYMBOL}
               <span className="text-sm text-text-muted"> /hr</span>
             </p>
 
@@ -70,7 +70,7 @@ export function GpuCatalog() {
             >
               {renting === gpu.type && mutation.isPending
                 ? "Renting…"
-                : `Rent for ${gpu.pricePerHour * hours[gpu.type]} ${TOKEN_SYMBOL}`}
+                : `Rent for ${gpu.pricePerHour * hours[gpu.type]}${TOKEN_SYMBOL}`}
             </Button>
           </div>
         ))}

@@ -49,7 +49,7 @@ export default function LoginPage() {
         <p className="text-technical text-xs text-sand mb-4">WELCOME BACK</p>
         <h1 className="text-display text-4xl text-off-white">Log in</h1>
         <p className="mt-3 text-sm text-off-white/70">
-          Access your dashboard, robots, and STARFORGE token balance.
+          Access your dashboard, robots, and credit balance.
         </p>
 
         <form

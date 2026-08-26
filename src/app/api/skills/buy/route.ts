@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     if (err instanceof Error && err.message === "INSUFFICIENT_BALANCE") {
-      return NextResponse.json({ error: "Not enough STARFORGE tokens" }, { status: 402 });
+      return NextResponse.json({ error: "Not enough credit" }, { status: 402 });
     }
     if (err instanceof Error && err.message === "NOT_FOUND") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
