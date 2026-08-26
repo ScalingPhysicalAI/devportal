@@ -1,0 +1,459 @@
+<mujoco model="Humanoid">
+  <option integrator="implicitfast"/>
+<default>
+  <joint stiffness="300" damping="25"/>
+  <geom contype="2" conaffinity="1"/>
+</default>
+<compiler angle="radian"/>
+
+  <asset>
+    <mesh name="base_link" content_type="model/stl" file="meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="wheelbase_lift_1" content_type="model/stl" file="meshes/wheelbase_lift_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rotation_waist_joint_1" content_type="model/stl" file="meshes/rotation_waist_joint_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="chest_enclosure_2_1" content_type="model/stl" file="meshes/chest_enclosure_2_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rotation_shoulder_joint_1" content_type="model/stl" file="meshes/rotation_shoulder_joint_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rotation_shoulder_joint_2" content_type="model/stl" file="meshes/rotation_shoulder_joint_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rotation_arm_joint_1" content_type="model/stl" file="meshes/rotation_arm_joint_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="rotation_arm_joint_2" content_type="model/stl" file="meshes/rotation_arm_joint_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="arm_joint_1" content_type="model/stl" file="meshes/arm_joint_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="arm_joint_2" content_type="model/stl" file="meshes/arm_joint_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="forearm_joint_1" content_type="model/stl" file="meshes/forearm_joint_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="forearm_joint_2" content_type="model/stl" file="meshes/forearm_joint_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_stepper_dummy_1" content_type="model/stl" file="meshes/actuator_stepper_dummy_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_1" content_type="model/stl" file="meshes/actuator_dummy_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_2" content_type="model/stl" file="meshes/actuator_dummy_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_3" content_type="model/stl" file="meshes/actuator_dummy_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_4" content_type="model/stl" file="meshes/actuator_dummy_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_5" content_type="model/stl" file="meshes/actuator_dummy_5.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_6" content_type="model/stl" file="meshes/actuator_dummy_6.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_7" content_type="model/stl" file="meshes/actuator_dummy_7.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_8" content_type="model/stl" file="meshes/actuator_dummy_8.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_9" content_type="model/stl" file="meshes/actuator_dummy_9.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="actuator_dummy_10" content_type="model/stl" file="meshes/actuator_dummy_10.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="neck_joint_3dp_1" content_type="model/stl" file="meshes/neck_joint_3dp_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="face_cover_3_1" content_type="model/stl" file="meshes/face_cover_3_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="servo_spacer_hand_1" content_type="model/stl" file="meshes/servo_spacer_hand_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="servo_spacer_hand_2" content_type="model/stl" file="meshes/servo_spacer_hand_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="wrist_cover_1" content_type="model/stl" file="meshes/wrist_cover_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="wrist_cover_2" content_type="model/stl" file="meshes/wrist_cover_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="wheels_1" content_type="model/stl" file="meshes/wheels_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="wheels_2" content_type="model/stl" file="meshes/wheels_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="caster_plate_1" content_type="model/stl" file="meshes/caster_plate_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="caster_wheel_1" content_type="model/stl" file="meshes/caster_wheel_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="caster_plate_2" content_type="model/stl" file="meshes/caster_plate_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="caster_wheel_2" content_type="model/stl" file="meshes/caster_wheel_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="palm_right_1" content_type="model/stl" file="meshes/palm_right_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_1" content_type="model/stl" file="meshes/finger_knuckle_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_2" content_type="model/stl" file="meshes/finger_knuckle_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_3" content_type="model/stl" file="meshes/finger_knuckle_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_4" content_type="model/stl" file="meshes/finger_knuckle_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="thumb_knuckle_1" content_type="model/stl" file="meshes/thumb_knuckle_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_1" content_type="model/stl" file="meshes/finger_rear_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_2" content_type="model/stl" file="meshes/finger_rear_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_3" content_type="model/stl" file="meshes/finger_rear_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_4" content_type="model/stl" file="meshes/finger_rear_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_pinky_1" content_type="model/stl" file="meshes/finger_mid_pinky_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_1" content_type="model/stl" file="meshes/finger_mid_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_2" content_type="model/stl" file="meshes/finger_mid_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_small_1" content_type="model/stl" file="meshes/finger_mid_small_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_small_2" content_type="model/stl" file="meshes/finger_mid_small_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_small_1" content_type="model/stl" file="meshes/finger_tip_small_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_1" content_type="model/stl" file="meshes/finger_tip_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_2" content_type="model/stl" file="meshes/finger_tip_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_small_2" content_type="model/stl" file="meshes/finger_tip_small_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_small_3" content_type="model/stl" file="meshes/finger_tip_small_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="palm_top_right_1" content_type="model/stl" file="meshes/palm_top_right_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="palm_left_1" content_type="model/stl" file="meshes/palm_left_1.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_5" content_type="model/stl" file="meshes/finger_knuckle_5.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_6" content_type="model/stl" file="meshes/finger_knuckle_6.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_7" content_type="model/stl" file="meshes/finger_knuckle_7.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_knuckle_8" content_type="model/stl" file="meshes/finger_knuckle_8.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="thumb_knuckle_2" content_type="model/stl" file="meshes/thumb_knuckle_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_5" content_type="model/stl" file="meshes/finger_rear_5.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_6" content_type="model/stl" file="meshes/finger_rear_6.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_7" content_type="model/stl" file="meshes/finger_rear_7.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_rear_8" content_type="model/stl" file="meshes/finger_rear_8.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_pinky_2" content_type="model/stl" file="meshes/finger_mid_pinky_2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_3" content_type="model/stl" file="meshes/finger_mid_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_4" content_type="model/stl" file="meshes/finger_mid_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_small_3" content_type="model/stl" file="meshes/finger_mid_small_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_mid_small_4" content_type="model/stl" file="meshes/finger_mid_small_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_small_4" content_type="model/stl" file="meshes/finger_tip_small_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_3" content_type="model/stl" file="meshes/finger_tip_3.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_4" content_type="model/stl" file="meshes/finger_tip_4.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_small_5" content_type="model/stl" file="meshes/finger_tip_small_5.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="finger_tip_small_6" content_type="model/stl" file="meshes/finger_tip_small_6.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="palm_top_left_1" content_type="model/stl" file="meshes/palm_top_left_1.stl" scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <worldbody>
+  <geom name="floor" type="plane" size="5 5 0.1" rgba="0.25 0.25 0.28 1" contype="1" conaffinity="1"/>
+
+    <geom pos="0 0 0.115" quat="0.707107 0.707107 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="base_link"/>
+    <geom pos="0 0 0.115" quat="0.707107 0.707107 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="base_link"/>
+    <body name="wheelbase_lift_1" pos="0.2555 -0.08675 0.105" quat="0.707107 0.707107 0 0">
+      <inertial pos="-0.0669937 0.607829 0.000137511" quat="0.502161 0.497728 -0.503194 0.496887" mass="2.32765" diaginertia="0.0490221 0.0480686 0.00793223"/>
+      <joint name="Slider 2" type="slide" range="0 0.3" actuatorfrcrange="-100 100" axis="0 1 0"/>
+      <geom pos="-0.2555 0.01 -0.08675" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wheelbase_lift_1"/>
+      <geom pos="-0.2555 0.01 -0.08675" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wheelbase_lift_1"/>
+      <body name="rotation_waist_joint_1" pos="0.0395 1.68836 0.03025">
+        <inertial pos="-0.103209 -0.792823 -0.0272519" quat="0.185248 0.677641 0.223343 0.675725" mass="1.18908" diaginertia="0.00348547 0.00334766 0.00153143"/>
+        <joint name="Revolute 3" axis="0 -1 0"/>
+        <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_waist_joint_1"/>
+        <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_waist_joint_1"/>
+        <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_stepper_dummy_1"/>
+        <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_stepper_dummy_1"/>
+        <body name="chest_enclosure_2_1" pos="-0.999277 -0.746828 -0.29825">
+          <inertial pos="0.892651 0.283233 0.270524" quat="0.500548 0.499438 -0.500718 0.499295" mass="2.41571" diaginertia="0.0654989 0.0561083 0.017555"/>
+          <joint name="Revolute 4" range="-1.91986 0" actuatorfrcrange="-100 100" axis="-1 0 0"/>
+          <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="chest_enclosure_2_1"/>
+          <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="chest_enclosure_2_1"/>
+          <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_1"/>
+          <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_1"/>
+          <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_2"/>
+          <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_2"/>
+          <body name="rotation_shoulder_joint_1" pos="0.806027 1.23403 0.2925">
+            <inertial pos="-0.0684915 -0.848778 -0.0201098" quat="0.695871 0.125554 0.125554 0.695871" mass="0.66616" diaginertia="0.000920944 0.000831363 0.000767581"/>
+            <joint name="Revolute 5" axis="1 0 0"/>
+            <geom pos="-0.10175 -2.16555 -0.11125" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_shoulder_joint_1"/>
+            <geom pos="-0.10175 -2.16555 -0.11125" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_shoulder_joint_1"/>
+            <geom pos="-0.10175 -2.16556 -0.11125" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_3"/>
+            <geom pos="-0.10175 -2.16556 -0.11125" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_3"/>
+            <body name="rotation_arm_joint_1" pos="-0.1621 -0.820378 -1.34128">
+              <inertial pos="0.08875 -0.0572699 1.34421" quat="0.663243 -0.24517 0.24517 0.663243" mass="0.121882" diaginertia="0.000235235 0.000204 0.000111765"/>
+              <joint name="Revolute 7" range="0 3.14159" actuatorfrcrange="-100 100" axis="0 0 -1"/>
+              <geom pos="0.06035 -1.34518 1.23003" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_arm_joint_1"/>
+              <geom pos="0.06035 -1.34518 1.23003" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_arm_joint_1"/>
+              <body name="arm_joint_1" pos="0.06035 1.23738 1.28503">
+                <inertial pos="0.0235639 -1.41009 0.0268498" quat="0.495453 0.504506 -0.495453 0.504506" mass="1.28386" diaginertia="0.00485528 0.00461222 0.00155106"/>
+                <joint name="Revolute 9" axis="0 -1 0"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="arm_joint_1"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="arm_joint_1"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_5"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_5"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_7"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_7"/>
+                <body name="forearm_joint_1" pos="-0.0432 -0.3432 0.1087">
+                  <inertial pos="0.0596929 -1.21202 -0.0818502" quat="0.397769 0.584619 -0.397769 0.584619" mass="0.733876" diaginertia="0.00155363 0.00147194 0.000846688"/>
+                  <joint name="Revolute 11" range="-1.74533 1.74533" actuatorfrcrange="-100 100" axis="-1 0 0"/>
+                  <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="forearm_joint_1"/>
+                  <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="forearm_joint_1"/>
+                  <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_10"/>
+                  <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_10"/>
+                  <body name="servo_spacer_hand_1" pos="-0.01335 -2.23935 -0.10715">
+                    <inertial pos="0.0723115 0.957657 0.0252998" quat="0.655684 0 0 0.755035" mass="0.0491123" diaginertia="6.31667e-05 5.08851e-05 2.60518e-05"/>
+                    <joint name="Revolute 26" axis="0 -1 0"/>
+                    <geom pos="0.05655 0 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="servo_spacer_hand_1"/>
+                    <geom pos="0.05655 0 -0.05655" type="mesh" rgba="0.7 0.7 0.7 1" mesh="servo_spacer_hand_1"/>
+                    <geom pos="0.05655 0 -0.05655" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wrist_cover_1"/>
+                    <geom pos="0.05655 0 -0.05655" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wrist_cover_1"/>
+                    <body name="palm_right_1" pos="0.0235 0.0357 0">
+                      <inertial pos="0.044103 0.815385 0.0251616" quat="0.717615 0.696404 -0.00531281 -0.00455146" mass="0.205779" diaginertia="0.000602117 0.000457754 0.000256792"/>
+                      <joint name="Revolute 43" range="-0.261799 1.5708" actuatorfrcrange="-100 100"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="palm_right_1"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="palm_right_1"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_1"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_1"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_2"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_2"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_3"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_3"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_4"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_4"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="palm_top_right_1"/>
+                      <geom pos="0.03305 -0.0357 -0.05655" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="palm_top_right_1"/>
+                      <body name="finger_rear_1" pos="0.823514 0.804374 -0.012858">
+                        <inertial pos="-0.783033 -0.0709914 -0.00657199" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 49" axis="0 -0.130526 0.991445"/>
+                        <geom pos="-0.790464 -0.840074 -0.043692" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_1"/>
+                        <geom pos="-0.790464 -0.840074 -0.043692" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_1"/>
+                        <body name="finger_mid_pinky_1" pos="-0.032222 -0.027505 -0.003622">
+                          <inertial pos="-0.75109 -0.0673852 -0.00606341" mass="0.00264731" diaginertia="1e-09 1e-09 1e-09"/>
+                          <joint name="Revolute 53" axis="0 -0.130526 0.991445"/>
+                          <geom pos="-0.758242 -0.812569 -0.04007" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_pinky_1"/>
+                          <geom pos="-0.758242 -0.812569 -0.04007" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_pinky_1"/>
+                          <body name="finger_tip_small_1" pos="-0.015367 -0.034228 -0.004506">
+                            <inertial pos="-0.735476 -0.0524772 -0.00411086" mass="0.00362902" diaginertia="1e-09 1e-09 1e-09"/>
+                            <joint name="Revolute 58" axis="0 -0.130526 0.991445"/>
+                            <geom pos="-0.742875 -0.778341 -0.035564" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_small_1"/>
+                            <geom pos="-0.742875 -0.778341 -0.035564" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_small_1"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="finger_rear_2" pos="0.815276 0.824631 0.011942">
+                        <inertial pos="-0.774795 -0.099269 -0.00158058" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 50" axis="0 -0.043619 0.999048"/>
+                        <geom pos="-0.782226 -0.860331 -0.068492" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_2"/>
+                        <geom pos="-0.782226 -0.860331 -0.068492" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_2"/>
+                        <body name="finger_mid_1" pos="-0.032469 -0.024894 -0.001087">
+                          <inertial pos="-0.74248 -0.104177 -0.00179177" mass="0.00535945" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                          <joint name="Revolute 54" axis="0 -0.043619 0.999048"/>
+                          <geom pos="-0.749757 -0.835437 -0.067405" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_1"/>
+                          <geom pos="-0.749757 -0.835437 -0.067405" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_1"/>
+                          <body name="finger_tip_1" pos="-0.027474 -0.033668 -0.00147">
+                            <inertial pos="-0.71489 -0.0984806 -0.00153746" mass="0.00449619" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                            <joint name="Revolute 59" axis="0 -0.043619 0.999048"/>
+                            <geom pos="-0.722283 -0.801769 -0.065935" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_1"/>
+                            <geom pos="-0.722283 -0.801769 -0.065935" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_1"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="finger_rear_3" pos="0.811143 0.848679 0.031898">
+                        <inertial pos="-0.770662 -0.127077 0.008302" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 51" axis="0 0.043619 0.999048"/>
+                        <geom pos="-0.778093 -0.884379 -0.088448" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_3"/>
+                        <geom pos="-0.778093 -0.884379 -0.088448" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_3"/>
+                        <body name="finger_mid_2" pos="-0.032469 -0.022061 0.000963">
+                          <inertial pos="-0.738347 -0.134818 0.0086432" mass="0.00535945" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                          <joint name="Revolute 55" axis="0 0.043619 0.999048"/>
+                          <geom pos="-0.745624 -0.862318 -0.089411" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_2"/>
+                          <geom pos="-0.745624 -0.862318 -0.089411" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_2"/>
+                          <body name="finger_tip_2" pos="-0.027474 -0.031271 0.001366">
+                            <inertial pos="-0.710757 -0.131517 0.00850399" mass="0.00449619" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                            <joint name="Revolute 60" axis="0 0.043619 0.999048"/>
+                            <geom pos="-0.71815 -0.831047 -0.090777" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_2"/>
+                            <geom pos="-0.71815 -0.831047 -0.090777" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_2"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="finger_rear_4" pos="0.810905 0.875624 0.047017">
+                        <inertial pos="-0.770424 -0.153735 0.023014" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 52" axis="0 0.130526 0.991445"/>
+                        <geom pos="-0.777855 -0.911324 -0.103567" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_4"/>
+                        <geom pos="-0.777855 -0.911324 -0.103567" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_4"/>
+                        <body name="finger_mid_small_1" pos="-0.032222 -0.019093 0.002513">
+                          <inertial pos="-0.738389 -0.161808 0.0240884" mass="0.00422993" diaginertia="1e-09 1e-09 1e-09"/>
+                          <joint name="Revolute 56" axis="0 0.130526 0.991445"/>
+                          <geom pos="-0.745633 -0.892231 -0.10608" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_small_1"/>
+                          <geom pos="-0.745633 -0.892231 -0.10608" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_small_1"/>
+                          <body name="finger_tip_small_2" pos="-0.022308 -0.02931 0.003859">
+                            <inertial pos="-0.715926 -0.155485 0.0232678" mass="0.00362902" diaginertia="1e-09 1e-09 1e-09"/>
+                            <joint name="Revolute 61" axis="0 0.130526 0.991445"/>
+                            <geom pos="-0.723325 -0.862921 -0.109939" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_small_2"/>
+                            <geom pos="-0.723325 -0.862921 -0.109939" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_small_2"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="thumb_knuckle_1" pos="0.042936 0.792561 0.068234">
+                        <inertial pos="-0.00220341 -0.0117404 0.0150305" mass="0.0041633" diaginertia="1e-09 1e-09 1e-09"/>
+                        <joint name="Revolute 48" axis="-0.707107 0.5 0.5"/>
+                        <geom pos="-0.009886 -0.828261 -0.124784" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="thumb_knuckle_1"/>
+                        <geom pos="-0.009886 -0.828261 -0.124784" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="thumb_knuckle_1"/>
+                        <body name="finger_mid_small_2" pos="0.567971 -0.302474 -0.500331">
+                          <inertial pos="-0.569949 0.273967 0.532102" mass="0.00422993" diaginertia="1e-09 1e-09 1e-09"/>
+                          <joint name="Revolute 57" axis="-0.707099 -0.503258 -0.496732"/>
+                          <geom pos="-0.577857 -0.525787 0.375547" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_small_2"/>
+                          <geom pos="-0.577857 -0.525787 0.375547" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_small_2"/>
+                          <body name="finger_tip_small_3" pos="-0.011124 -0.000166 0.016151">
+                            <inertial pos="-0.558632 0.25772 0.532328" mass="0.00362902" diaginertia="1e-09 1e-09 1e-09"/>
+                            <joint name="Revolute 62" axis="-0.707099 -0.503258 -0.496732"/>
+                            <geom pos="-0.566733 -0.525621 0.359396" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_small_3"/>
+                            <geom pos="-0.566733 -0.525621 0.359396" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_small_3"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+          <body name="rotation_shoulder_joint_2" pos="0.806027 1.23403 0.5105">
+            <inertial pos="0.241992 -0.848778 -0.23811" quat="0.695871 -0.125554 -0.125554 0.695871" mass="0.66616" diaginertia="0.000920944 0.000831363 0.000767581"/>
+            <joint name="Revolute 6" axis="-1 0 0"/>
+            <geom pos="-0.10175 -2.16555 -0.32925" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_shoulder_joint_2"/>
+            <geom pos="-0.10175 -2.16555 -0.32925" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_shoulder_joint_2"/>
+            <geom pos="-0.10175 -2.16556 -0.32925" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_4"/>
+            <geom pos="-0.10175 -2.16556 -0.32925" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_4"/>
+            <body name="rotation_arm_joint_2" pos="0.3356 -1.19738 -1.55928">
+              <inertial pos="-0.08875 0.31973 1.34421" quat="0.663243 -0.24517 0.24517 0.663243" mass="0.121882" diaginertia="0.000235235 0.000204 0.000111765"/>
+              <joint name="Revolute 8" range="-3.14159 0" actuatorfrcrange="-100 100" axis="0 0 -1"/>
+              <geom pos="-0.43735 -0.968177 1.23003" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_arm_joint_2"/>
+              <geom pos="-0.43735 -0.968177 1.23003" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_arm_joint_2"/>
+              <body name="arm_joint_2" pos="-0.43735 1.61438 1.28503">
+                <inertial pos="0.353436 -1.41009 0.0268498" quat="0.504506 0.495453 -0.504506 0.495453" mass="1.28386" diaginertia="0.00485528 0.00461222 0.00155106"/>
+                <joint name="Revolute 10" axis="0 -1 0"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="arm_joint_2"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="arm_joint_2"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_6"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_6"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_8"/>
+                <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_8"/>
+                <body name="forearm_joint_2" pos="0 -0.3432 -0.055">
+                  <inertial pos="0.360507 -1.21202 0.0818498" quat="0.584619 0.397769 -0.584619 0.397769" mass="0.733876" diaginertia="0.00155363 0.00147194 0.000846688"/>
+                  <joint name="Revolute 12" range="-1.74533 1.74533" actuatorfrcrange="-100 100" axis="1 0 0"/>
+                  <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="forearm_joint_2"/>
+                  <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="forearm_joint_2"/>
+                  <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_9"/>
+                  <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_9"/>
+                  <body name="servo_spacer_hand_2" pos="0.26985 -2.23935 -0.26985">
+                    <inertial pos="0.0913885 0.957657 0.3517" quat="0.755035 0 0 0.655684" mass="0.0491123" diaginertia="6.31667e-05 5.08851e-05 2.60518e-05"/>
+                    <joint name="Revolute 27" axis="0 -1 0"/>
+                    <geom pos="-0.26985 0 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="servo_spacer_hand_2"/>
+                    <geom pos="-0.26985 0 0.26985" type="mesh" rgba="0.7 0.7 0.7 1" mesh="servo_spacer_hand_2"/>
+                    <geom pos="-0.26985 0 0.26985" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wrist_cover_2"/>
+                    <geom pos="-0.26985 0 0.26985" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wrist_cover_2"/>
+                    <body name="palm_left_1" pos="-0.0235 0.0357 0">
+                      <inertial pos="0.119597 0.815385 0.351606" quat="0.717609 0.696411 0.00524294 0.0046221" mass="0.205779" diaginertia="0.000602119 0.000457754 0.000256794"/>
+                      <joint name="Revolute 64" range="-0.261799 1.5708" actuatorfrcrange="-100 100" axis="0 0 -1"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="palm_left_1"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="palm_left_1"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_5"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_5"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_6"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_6"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_7"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_7"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_8"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_knuckle_8"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="palm_top_left_1"/>
+                      <geom pos="-0.24635 -0.0357 0.26985" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="palm_top_left_1"/>
+                      <body name="finger_rear_5" pos="-0.659814 0.851021 -0.040348">
+                        <inertial pos="0.783033 -0.117632 0.347317" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 70" axis="0 -0.130526 0.991445"/>
+                        <geom pos="0.413464 -0.886721 0.310198" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_5"/>
+                        <geom pos="0.413464 -0.886721 0.310198" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_5"/>
+                        <body name="finger_mid_pinky_2" pos="0.033331 -0.019149 -0.002521">
+                          <inertial pos="0.749981 -0.122373 0.34666" mass="0.00264731" diaginertia="1e-09 1e-09 1e-09"/>
+                          <joint name="Revolute 74" axis="0 0.130526 -0.991445"/>
+                          <geom pos="0.380133 -0.867572 0.312719" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_pinky_2"/>
+                          <geom pos="0.380133 -0.867572 0.312719" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_pinky_2"/>
+                          <body name="finger_tip_small_4" pos="0.015367 -0.034228 -0.004506">
+                            <inertial pos="0.734367 -0.107468 0.348632" mass="0.00362902" diaginertia="1e-09 1e-09 1e-09"/>
+                            <joint name="Revolute 79" axis="0 0.130526 -0.991445"/>
+                            <geom pos="0.364766 -0.833344 0.317225" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_small_4"/>
+                            <geom pos="0.364766 -0.833344 0.317225" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_small_4"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="finger_rear_6" pos="-0.651205 0.848737 -0.017896">
+                        <inertial pos="0.774424 -0.123373 0.354656" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 71" axis="0 0.043619 -0.999048"/>
+                        <geom pos="0.404855 -0.884437 0.287746" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_6"/>
+                        <geom pos="0.404855 -0.884437 0.287746" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_6"/>
+                        <body name="finger_mid_3" pos="0.032469 -0.024894 -0.001086">
+                          <inertial pos="0.742109 -0.128281 0.354437" mass="0.00535945" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                          <joint name="Revolute 75" axis="0 0.043619 -0.999048"/>
+                          <geom pos="0.372386 -0.859543 0.288832" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_3"/>
+                          <geom pos="0.372386 -0.859543 0.288832" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_3"/>
+                          <body name="finger_tip_3" pos="0.027474 -0.033668 -0.00147">
+                            <inertial pos="0.714519 -0.122584 0.354681" mass="0.00449619" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                            <joint name="Revolute 80" axis="0 0.043619 -0.999048"/>
+                            <geom pos="0.344912 -0.825875 0.290302" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_3"/>
+                            <geom pos="0.344912 -0.825875 0.290302" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_3"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="finger_rear_7" pos="-0.647814 0.841641 0.001315">
+                        <inertial pos="0.771033 -0.120041 0.365283" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 72" axis="0 -0.043619 -0.999048"/>
+                        <geom pos="0.401464 -0.877341 0.268535" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_7"/>
+                        <geom pos="0.401464 -0.877341 0.268535" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_7"/>
+                        <body name="finger_mid_4" pos="0.032469 -0.022062 0.000964">
+                          <inertial pos="0.738718 -0.127781 0.365617" mass="0.00535945" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                          <joint name="Revolute 76" axis="0 -0.043619 -0.999048"/>
+                          <geom pos="0.368995 -0.855279 0.267571" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_4"/>
+                          <geom pos="0.368995 -0.855279 0.267571" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_4"/>
+                          <body name="finger_tip_4" pos="0.027474 -0.03127 0.001365">
+                            <inertial pos="0.711128 -0.124482 0.365468" mass="0.00449619" diaginertia="3.34e-07 3.34e-07 3.34e-07"/>
+                            <joint name="Revolute 81" axis="0 -0.043619 -0.999048"/>
+                            <geom pos="0.341521 -0.824009 0.266206" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_4"/>
+                            <geom pos="0.341521 -0.824009 0.266206" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_4"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="finger_rear_8" pos="-0.648314 0.837431 0.018414">
+                        <inertial pos="0.771533 -0.115548 0.378016" quat="0.707107 0.707107 0 0" mass="0.00598112" diaginertia="1e-06 1e-06 1e-09"/>
+                        <joint name="Revolute 73" axis="0 -0.130526 -0.991445"/>
+                        <geom pos="0.401964 -0.873131 0.251436" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_rear_8"/>
+                        <geom pos="0.401964 -0.873131 0.251436" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_rear_8"/>
+                        <body name="finger_mid_small_3" pos="0.032222 -0.019093 0.002514">
+                          <inertial pos="0.739498 -0.123625 0.379068" mass="0.00422993" diaginertia="1e-09 1e-09 1e-09"/>
+                          <joint name="Revolute 77" axis="0 -0.130526 -0.991445"/>
+                          <geom pos="0.369742 -0.854038 0.248922" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_small_3"/>
+                          <geom pos="0.369742 -0.854038 0.248922" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_small_3"/>
+                          <body name="finger_tip_small_5" pos="0.022307 -0.02931 0.003859">
+                            <inertial pos="0.717036 -0.117304 0.378223" mass="0.00362902" diaginertia="1e-09 1e-09 1e-09"/>
+                            <joint name="Revolute 82" axis="0 -0.130526 -0.991445"/>
+                            <geom pos="0.347435 -0.824728 0.245063" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_small_5"/>
+                            <geom pos="0.347435 -0.824728 0.245063" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_small_5"/>
+                          </body>
+                        </body>
+                      </body>
+                      <body name="thumb_knuckle_2" pos="0.120764 0.792561 0.394684">
+                        <inertial pos="0.00220342 -0.0117404 0.0150305" mass="0.0041633" diaginertia="1e-09 1e-09 1e-09"/>
+                        <joint name="Revolute 69" axis="-0.707107 -0.5 -0.5"/>
+                        <geom pos="-0.367114 -0.828261 -0.124834" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="thumb_knuckle_2"/>
+                        <geom pos="-0.367114 -0.828261 -0.124834" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="thumb_knuckle_2"/>
+                        <body name="finger_mid_small_4" pos="-0.315536 -0.482102 -0.6777">
+                          <inertial pos="0.317566 0.453558 0.709434" mass="0.00422993" diaginertia="1e-09 1e-09 1e-09"/>
+                          <joint name="Revolute 78" axis="0.707099 -0.503258 -0.496732"/>
+                          <geom pos="-0.051578 -0.346159 0.552866" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_mid_small_4"/>
+                          <geom pos="-0.051578 -0.346159 0.552866" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_mid_small_4"/>
+                          <body name="finger_tip_small_6" pos="0.011124 -0.000166 0.016151">
+                            <inertial pos="0.306266 0.437299 0.709649" mass="0.00362902" diaginertia="1e-09 1e-09 1e-09"/>
+                            <joint name="Revolute 83" axis="0.707099 -0.503258 -0.496732"/>
+                            <geom pos="-0.062702 -0.345993 0.536715" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_tip_small_6"/>
+                            <geom pos="-0.062702 -0.345993 0.536715" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="finger_tip_small_6"/>
+                          </body>
+                        </body>
+                      </body>
+                    </body>
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+          <body name="neck_joint_3dp_1" pos="0.76251 1.28803 0.4015">
+            <inertial pos="0.128221 -0.823348 -0.089983" quat="0.5 0.5 -0.5 0.5" mass="0.031209" diaginertia="2e-05 1.9e-05 1.2e-05"/>
+            <joint name="Revolute 24" axis="0 1 0"/>
+            <geom pos="-0.058233 -2.21956 -0.22025" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="neck_joint_3dp_1"/>
+            <geom pos="-0.058233 -2.21956 -0.22025" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="neck_joint_3dp_1"/>
+            <body name="face_cover_3_1" pos="0.339917 0.56482 0.040284">
+              <inertial pos="-0.212908 -1.28395 -0.147047" quat="0.0220617 0.70037 0.0309964 0.712766" mass="0.25886" diaginertia="0.00140998 0.00110035 0.000604668"/>
+              <joint name="Revolute 25" range="-1.5708 1.22173" actuatorfrcrange="-100 100" axis="-1 0 0"/>
+              <geom pos="-0.39815 -2.78438 -0.260534" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="face_cover_3_1"/>
+              <geom pos="-0.39815 -2.78438 -0.260534" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="face_cover_3_1"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+    <body name="wheels_1" pos="0.377 -0.08675 0.169" quat="0.707107 0.707107 0 0">
+      <inertial pos="-0.3871 -0.0633225 0" mass="0.601998" diaginertia="0.003101 0.001571 0.001571"/>
+      <joint name="Revolute 32" axis="1 0 0"/>
+      <geom pos="-0.377 -0.054 -0.08675" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wheels_1"/>
+      <geom pos="-0.377 -0.054 -0.08675" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wheels_1"/>
+    </body>
+    <body name="wheels_2" pos="0 -0.08675 0.169" quat="0.707107 0.707107 0 0">
+      <inertial pos="0.3871 -0.0633225 0" mass="0.601998" diaginertia="0.003101 0.001571 0.001571"/>
+      <joint name="Revolute 33" axis="-1 0 0"/>
+      <geom pos="0 -0.054 -0.08675" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wheels_2"/>
+      <geom pos="0 -0.054 -0.08675" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wheels_2"/>
+    </body>
+    <body name="caster_plate_1" pos="0.3166 -0.28685 0.2005" quat="0.707107 0.707107 0 0">
+      <inertial pos="-0.3166 -0.0855 -0.28685" mass="1e-06" diaginertia="1e-09 1e-09 1e-09"/>
+      <joint name="Revolute 36" axis="0 1 0"/>
+      <geom pos="-0.3166 -0.0855 -0.28685" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="caster_plate_1"/>
+      <geom pos="-0.3166 -0.0855 -0.28685" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="caster_plate_1"/>
+      <body name="caster_wheel_1" pos="0.01365 -0.210306 -0.0761">
+        <inertial pos="-0.26985 0.0384032 0.0591" mass="0.0273733" diaginertia="1e-05 6e-06 6e-06"/>
+        <joint name="Revolute 37" axis="-1 0 0"/>
+        <geom pos="-0.33025 0.124806 -0.21075" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="caster_wheel_1"/>
+        <geom pos="-0.33025 0.124806 -0.21075" type="mesh" rgba="0.7 0.7 0.7 1" mesh="caster_wheel_1"/>
+      </body>
+    </body>
+    <body name="caster_plate_2" pos="0.0604 -0.28685 0.2005" quat="0.707107 0.707107 0 0">
+      <inertial pos="-0.0604 -0.0855 -0.28685" mass="1e-06" diaginertia="1e-09 1e-09 1e-09"/>
+      <joint name="Revolute 38" axis="0 1 0"/>
+      <geom pos="-0.0604 -0.0855 -0.28685" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="caster_plate_2"/>
+      <geom pos="-0.0604 -0.0855 -0.28685" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="caster_plate_2"/>
+      <body name="caster_wheel_2" pos="0.52605 -0.212306 -0.3009">
+        <inertial pos="-0.26985 0.0394032 0.2839" mass="0.0273733" diaginertia="1e-05 6e-06 6e-06"/>
+        <joint name="Revolute 39" axis="1 0 0"/>
+        <geom pos="-0.58645 0.126806 0.01405" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="caster_wheel_2"/>
+        <geom pos="-0.58645 0.126806 0.01405" type="mesh" rgba="0.7 0.7 0.7 1" mesh="caster_wheel_2"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
