@@ -28,6 +28,11 @@ export function TopBar({ user }: { user: SafeUser }) {
       </Link>
 
       <div className="flex items-center gap-3">
+        <a href="https://starforgerobotics.com" target="_blank" rel="noopener noreferrer">
+          <Button variant="ghost" size="sm">
+            Back to Website
+          </Button>
+        </a>
         <TokenBadge initialUser={user} />
         <span className="hidden text-sm text-off-white/70 sm:inline">{user.name}</span>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
