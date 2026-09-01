@@ -8,7 +8,7 @@ export default function SimulatePage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-technical text-xs text-sand mb-2">SIMULATION</p>
-          <h1 className="text-display text-4xl text-off-white">Buildo in MuJoCo</h1>
+          <h1 className="text-display text-4xl text-off-white">Buildo Simulator</h1>
           <p className="mt-3 max-w-lg text-sm text-off-white/70">
             Live physics simulation of the Buildo humanoid model. Drag to
             orbit the camera, pause to inspect a pose, or reset to drop it
