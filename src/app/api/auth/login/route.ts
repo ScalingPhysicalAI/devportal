@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
   }
 
-  await createSessionCookie(user.id);
+  const token = await createSessionCookie(user.id);
 
-  return NextResponse.json({ user: toSafeUser(user) });
+  return NextResponse.json({ user: toSafeUser(user), token });
 }

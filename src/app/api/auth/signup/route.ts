@@ -38,12 +38,12 @@ export async function POST(request: Request) {
     throw err;
   }
 
-  await createSessionCookie(user.id);
+  const token = await createSessionCookie(user.id);
 
   // Fire-and-forget — a failed email should never block signup.
   sendVerificationEmail(user.email, user.name, emailVerifyToken).catch((err) => {
     console.error("[signup] Failed to send verification email:", err);
   });
 
-  return NextResponse.json({ user: toSafeUser(user) }, { status: 201 });
+  return NextResponse.json({ user: toSafeUser(user), token }, { status: 201 });
 }

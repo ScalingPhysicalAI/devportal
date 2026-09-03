@@ -27,12 +27,22 @@ export async function verifyPassword(password: string, hash: string) {
   return bcrypt.compare(password, hash);
 }
 
-export async function createSessionCookie(userId: string) {
-  const token = await new SignJWT({ sub: userId })
+export async function createSessionToken(userId: string) {
+  return new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
     .sign(getSecretKey());
+}
+
+/**
+ * Sets the session cookie (used by the web app) and returns the same signed
+ * JWT so API routes can also hand it back in the response body for non-browser
+ * clients such as the mobile app, which authenticate with `Authorization:
+ * Bearer <token>` instead of cookies.
+ */
+export async function createSessionCookie(userId: string) {
+  const token = await createSessionToken(userId);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -42,6 +52,8 @@ export async function createSessionCookie(userId: string) {
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });
+
+  return token;
 }
 
 export async function clearSessionCookie() {
@@ -49,9 +61,25 @@ export async function clearSessionCookie() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function getSessionUserId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
+function getBearerToken(request?: Request): string | null {
+  const header = request?.headers.get("authorization") ?? request?.headers.get("Authorization");
+  if (!header) return null;
+  const [scheme, value] = header.split(" ");
+  return scheme?.toLowerCase() === "bearer" && value ? value.trim() : null;
+}
+
+/**
+ * Resolves the current user id from either the `sf_session` cookie (web) or an
+ * `Authorization: Bearer <token>` header (mobile / API clients). Pass `request`
+ * from a route handler to enable the header path; without it, cookie only.
+ */
+export async function getSessionUserId(request?: Request): Promise<string | null> {
+  let token = getBearerToken(request);
+
+  if (!token) {
+    const cookieStore = await cookies();
+    token = cookieStore.get(SESSION_COOKIE)?.value ?? null;
+  }
   if (!token) return null;
 
   try {
@@ -60,6 +88,19 @@ export async function getSessionUserId(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Non-cached variant of {@link getCurrentUser} that also accepts a bearer token
+ * from the given request. Use this in API route handlers that must serve both
+ * the web app and the mobile app.
+ */
+export async function getUserFromRequest(request: Request): Promise<SafeUser | null> {
+  const userId = await getSessionUserId(request);
+  if (!userId) return null;
+
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  return user ? toSafeUser(user) : null;
 }
 
 export type SafeUser = Omit<User, "passwordHash">;
