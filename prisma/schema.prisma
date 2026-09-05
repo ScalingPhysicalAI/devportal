@@ -34,6 +34,9 @@ model User {
   emailVerifyToken    String?   @unique
   emailVerifyExpiry   DateTime?
 
+  passwordResetToken  String?   @unique
+  passwordResetExpiry DateTime?
+
   onboardingCompletedAt DateTime?
 
   createdAt DateTime @default(now())

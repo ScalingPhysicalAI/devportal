@@ -84,6 +84,12 @@ export default function LoginPage() {
             />
           </FieldWrap>
 
+          <div className="-mt-2 mb-5 text-right">
+            <Link href="/forgot-password" className="text-xs text-sand hover:underline">
+              Forgot password?
+            </Link>
+          </div>
+
           <FieldError>{error}</FieldError>
 
           <Button type="submit" disabled={loading} className="mt-2 w-full">

@@ -55,6 +55,25 @@ function verifyEmailHtml(name: string, verifyUrl: string) {
     </tr>`);
 }
 
+function resetPasswordEmailHtml(name: string, resetUrl: string) {
+  return emailShell(`
+    <tr>
+      <td style="padding:36px 32px 8px 32px;">
+        <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;color:#111111;">Reset your password, ${name}.</h1>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
+          Click the button below to choose a new password for your Starforge account.
+        </p>
+        <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
+          This link expires in 1 hour. If you didn't request this, you can ignore this email.
+        </p>
+        <a href="${resetUrl}"
+           style="display:inline-block;background-color:#b89c72;color:#050505;text-decoration:none;font-size:14px;font-weight:600;padding:12px 22px;border-radius:4px;">
+          Reset password
+        </a>
+      </td>
+    </tr>`);
+}
+
 function welcomeEmailHtml(name: string) {
   return emailShell(`
     <tr>
@@ -129,6 +148,16 @@ export async function sendVerificationEmail(to: string, name: string, token: str
     "Verify your Starforge email — claim 20$ credit",
     verifyEmailHtml(name, verifyUrl),
     `Verify your email and claim 20$ credit: ${verifyUrl}\n\nThis link expires in 24 hours.`,
+  );
+}
+
+export async function sendPasswordResetEmail(to: string, name: string, token: string) {
+  const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+  await send(
+    to,
+    "Reset your Starforge password",
+    resetPasswordEmailHtml(name, resetUrl),
+    `Reset your password: ${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, you can ignore this email.`,
   );
 }
 
