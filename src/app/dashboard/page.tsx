@@ -27,7 +27,7 @@ export default async function DashboardOverviewPage({
   ]);
 
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       {welcome === "1" && (
         <div className="mb-8 rounded-sm border border-success/30 bg-success/5 px-5 py-4">
           <p className="text-sm text-off-white break-words">

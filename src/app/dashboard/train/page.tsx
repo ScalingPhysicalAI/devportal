@@ -2,7 +2,7 @@ import { TrainTabs } from "@/components/dashboard/TrainTabs";
 
 export default function TrainPage() {
   return (
-    <div className="max-w-5xl">
+    <div className="w-full">
       <p className="text-technical text-xs text-sand mb-2">TRAINING</p>
       <h1 className="text-display text-4xl text-off-white">Train your robot</h1>
       <p className="mt-3 max-w-lg text-sm text-off-white/70">

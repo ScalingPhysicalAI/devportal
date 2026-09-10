@@ -1,28 +1,13 @@
-import Link from "next/link";
-
 import { MujocoViewer } from "@/components/simulation/MujocoViewer";
 
+// Full-bleed: DashboardChrome drops the sidebar column and content padding
+// for this route (see FULL_BLEED_PREFIXES there), so this fills the entire
+// viewport below the navbar. Navigate elsewhere via the topbar's menu
+// button or logo -- there's deliberately no in-page chrome here.
 export default function SimulatePage() {
   return (
-    <div className="flex h-[calc(100vh-12rem)] min-h-[560px] flex-col">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-technical text-xs text-sand mb-2">SIMULATION</p>
-          <h1 className="text-display text-4xl text-off-white">Buildo Simulator</h1>
-          <p className="mt-3 max-w-lg text-sm text-off-white/70">
-            Live physics simulation of the Buildo humanoid model. Drag to
-            orbit the camera, pause to inspect a pose, or reset to drop it
-            again.
-          </p>
-        </div>
-        <Link href="/dashboard" className="shrink-0 text-sm text-off-white/60 hover:text-off-white">
-          ← Overview
-        </Link>
-      </div>
-
-      <div className="mt-6 min-h-0 flex-1">
-        <MujocoViewer interactive className="h-full w-full rounded-sm border border-border-strong bg-black" />
-      </div>
+    <div className="h-full w-full bg-black">
+      <MujocoViewer interactive className="h-full w-full" />
     </div>
   );
 }

@@ -10,7 +10,13 @@ import { TokenBadge } from "@/components/dashboard/TokenBadge";
 import { logout } from "@/lib/api-client";
 import type { SafeUser } from "@/lib/auth";
 
-export function TopBar({ user }: { user: SafeUser }) {
+interface TopBarProps {
+  user: SafeUser;
+  onToggleSidebar: () => void;
+  sidebarOpen: boolean;
+}
+
+export function TopBar({ user, onToggleSidebar, sidebarOpen }: TopBarProps) {
   const router = useRouter();
   const { disconnect } = useDisconnect();
 
@@ -23,9 +29,21 @@ export function TopBar({ user }: { user: SafeUser }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-border bg-black/90 px-6 backdrop-blur">
-      <Link href="/dashboard">
-        <Logo />
-      </Link>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onToggleSidebar}
+          aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+          aria-expanded={sidebarOpen}
+          className="flex h-8 w-8 shrink-0 flex-col items-center justify-center gap-1 rounded-sm border border-border-strong text-off-white/70 transition-colors hover:text-off-white hover:bg-white/[0.03] cursor-pointer"
+        >
+          <span className={`h-px w-4 bg-current transition-transform ${sidebarOpen ? "translate-y-[3px] rotate-45" : ""}`} />
+          <span className={`h-px w-4 bg-current transition-opacity ${sidebarOpen ? "opacity-0" : ""}`} />
+          <span className={`h-px w-4 bg-current transition-transform ${sidebarOpen ? "-translate-y-[3px] -rotate-45" : ""}`} />
+        </button>
+        <Link href="/dashboard">
+          <Logo />
+        </Link>
+      </div>
 
       <div className="flex items-center gap-3">
         <a href="https://starforgerobotics.com" target="_blank" rel="noopener noreferrer">

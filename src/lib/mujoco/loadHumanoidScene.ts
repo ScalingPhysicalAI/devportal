@@ -40,6 +40,27 @@ export function getPosition(buffer: Float32Array | Float64Array, index: number, 
   return target.set(buffer[index * 3 + 0], buffer[index * 3 + 2], -buffer[index * 3 + 1]);
 }
 
+/** World-frame (x, y) direction of one of a body's own local axes, read directly off its
+ * rotation matrix (mjData.xmat, row-major 3x3 per body) -- column `localAxis` of that matrix
+ * *is* that local axis expressed in world coordinates, for any rotation, by construction.
+ *
+ * Used for teleop instead of extracting a "yaw" angle from the quaternion and reconstructing
+ * a heading via cos/sin: this robot's base isn't a plain yaw rotation on top of an
+ * unrotated frame -- resolve_urdf() bakes a fixed +90deg-about-X roll into the base's own
+ * rest orientation (to fix the source CAD's Y-up convention onto MuJoCo's Z-up), so the
+ * body's *net* rotation is that fixed roll composed with the live yaw, not yaw alone. A
+ * generic quaternion->yaw formula assumes a Z-Y-X Euler decomposition and has no way to
+ * account for that extra fixed roll -- it silently returns an angle offset by a constant
+ * amount from the true heading. That offset was exactly 90 degrees here, which is why
+ * driving "forward" moved the robot sideways (confirmed by comparing this method's output
+ * against the true local-axis direction computed independently via each hand's position --
+ * they agreed exactly; the old yaw-based formula did not). Reading the axis directly off
+ * xmat has no such assumption and needs no Euler decomposition at all. */
+export function getBodyAxisXY(xmat: Float32Array | Float64Array, index: number, localAxis: 0 | 1 | 2): [number, number] {
+  const base = index * 9;
+  return [xmat[base + localAxis], xmat[base + 3 + localAxis]];
+}
+
 /** Access a swizzled (MuJoCo Z-up -> three.js Y-up) quaternion at `index` into `target`. */
 export function getQuaternion(buffer: Float32Array | Float64Array, index: number, target: THREE.Quaternion): THREE.Quaternion {
   return target.set(-buffer[index * 4 + 1], -buffer[index * 4 + 3], buffer[index * 4 + 2], -buffer[index * 4 + 0]);

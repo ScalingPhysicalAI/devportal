@@ -7,6 +7,7 @@ import clsx from "clsx";
 const items = [
   { href: "/dashboard", label: "Overview", exact: true, tour: "nav-overview" },
   { href: "/dashboard/robots", label: "Robots", tour: "nav-robots" },
+  { href: "/dashboard/simulate", label: "Simulation", tour: "nav-simulate" },
   { href: "/dashboard/train", label: "Train", tour: "nav-train" },
   { href: "/dashboard/gpu", label: "GPU", tour: "nav-gpu" },
   { href: "/dashboard/skills", label: "Skills", tour: "nav-skills" },
