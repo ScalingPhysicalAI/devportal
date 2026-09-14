@@ -30,6 +30,15 @@ const DRIVE_WHEEL_RADIUS = 0.1015; // m
 // (read from the model, not hardcoded) already caps it to what the column
 // can physically extend.
 const LIFT_RATE = 0.15; // m/s while U or L is held
+// Waist forward bend ("Revolute 4" -- the torso pitch joint, WAIST_JOINTS in
+// model/scripts/urdf_to_mjcf.py). Its own ctrlrange goes further than this
+// (to -1.92 rad, confirmed via headless kinematics: negative is the forward
+// direction, positive doesn't exist on this joint at all -- 0 is fully
+// straight), but capped here at -90deg -- a human-plausible forward bend
+// limit, not the joint's own mechanical one. F bends forward, R straightens
+// back up, same hold-to-move/release-to-hold pattern as U/L.
+const BEND_RATE = 0.5; // rad/s while F or R is held
+const BEND_MAX = Math.PI / 2; // rad, forward -- clamps *below* the joint's own -1.92 limit
 // Which of base_link's own local axes points where the robot actually
 // faces -- see getBodyAxisXY's comment. Confirmed empirically (not
 // guessed): local X is the line straight through both hands (i.e. side to
@@ -87,24 +96,10 @@ const FPP_EYE_HEIGHT = 1.5; // m above base_link
 const ORBIT_POSITION: [number, number, number] = [5.5, 4, 5.5];
 const ORBIT_TARGET: [number, number, number] = [0, 0.6, 0];
 
-// Scripted "wave hello" -- right-arm joint targets found by probing forward
-// kinematics offline (see conversation/PR notes). This arm's own segments
-// are long relative to the rest of the model -- an earlier, bigger pose
-// (shoulder -0.6, elbow 0.6) put the hand ~1.7m from the body at head
-// height, which read as the hand having come loose and drifted off across
-// the room rather than as a raised arm. These smaller angles keep the hand
-// within about a meter of the body at roughly chest height; oscillating
-// the wrist (Revolute 43) still sweeps it back and forth by a clearly
-// visible ~0.8m. Purely a canned demo gesture; not driven by teleop.
-const WAVE_SHOULDER_TARGET = -0.3;
-const WAVE_ELBOW_TARGET = 0.4;
-const WAVE_WRIST_CENTER = 0.5;
-const WAVE_WRIST_AMPLITUDE = 0.3;
-const WAVE_WRIST_HZ = 1.5;
-const WAVE_RISE_S = 0.6;
-const WAVE_HOLD_S = 2.4; // oscillation duration, after the rise
-const WAVE_LOWER_S = 0.6;
-const WAVE_DURATION_S = WAVE_RISE_S + WAVE_HOLD_S + WAVE_LOWER_S;
+// Wave gesture removed at the user's request (the joint-anchor fix -- see
+// recenter_arm_joint_anchors() in model/scripts/urdf_to_mjcf.py -- fixed the
+// "detached"-looking swing, but the resulting motion still didn't read as a
+// wave) -- pending a proper scripted-scene replacement.
 
 function smoothstep(x: number): number {
   const t = Math.min(Math.max(x, 0), 1);
@@ -222,7 +217,6 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
   const pausedRef = useRef(paused);
   const viewRef = useRef(view);
   const resetRef = useRef<() => void>(() => {});
-  const waveRef = useRef<() => void>(() => {});
   const pickRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -321,7 +315,6 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       resetRef.current = () => {
         mujoco.mj_resetData(model, data);
         mujoco.mj_forward(model, data);
-        waveElapsedS = null;
         // mj_resetData already puts the weld back to inactive and the
         // pickup object back at its qpos0 spawn point on bench_n1 -- this
         // just resets the *sequence's own* bookkeeping to match.
@@ -330,9 +323,10 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         pickDriveVX = 0;
         pickDriveVY = 0;
         liftHeight = LIFT_MIN;
+        bendAngle = 0;
       };
 
-      // --- Teleop + wave actuator lookups -----------------------------
+      // --- Teleop actuator lookups -------------------------------------
       // Names match the placeholder actuators emitted by
       // model/scripts/urdf_to_mjcf.py's _build_actuators(); mj_name2id
       // returns -1 (harmlessly skipped below) if the loaded scene is an
@@ -345,17 +339,19 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       const ACT_YAW = actId("act_base_yaw");
       const ACT_WHEEL_L = actId("act_Revolute 32");
       const ACT_WHEEL_R = actId("act_Revolute 33");
-      const ACT_WAVE_SHOULDER = actId("act_Revolute 5");
-      const ACT_WAVE_ELBOW = actId("act_Revolute 11");
-      const ACT_WAVE_WRIST = actId("act_Revolute 43");
       const ACT_LIFT = actId("act_Slider 2");
+      const ACT_BEND = actId("act_Revolute 4");
       const BASE_BODY = mujoco.mj_name2id(model, OBJ_BODY, "base_link");
       const canDrive = ACT_VX >= 0 && ACT_VY >= 0 && ACT_YAW >= 0 && BASE_BODY >= 0;
-      const canWave = ACT_WAVE_SHOULDER >= 0 && ACT_WAVE_ELBOW >= 0 && ACT_WAVE_WRIST >= 0;
       const canFpp = canDrive;
       const canLift = ACT_LIFT >= 0;
       const LIFT_MIN = canLift ? model.actuator_ctrlrange[ACT_LIFT * 2] : 0;
       const LIFT_MAX = canLift ? model.actuator_ctrlrange[ACT_LIFT * 2 + 1] : 0;
+      const canBend = ACT_BEND >= 0;
+      // BEND_MAX clamps *below* the joint's own (more permissive) range --
+      // see BEND_MAX's own comment -- so this isn't simply the actuator's
+      // ctrlrange the way LIFT_MIN/MAX are.
+      const BEND_MIN = -BEND_MAX;
 
       // --- Pick & Place lookups ---------------------------------------
       const OBJ_JOINT = mujoco.mjtObj.mjOBJ_JOINT.value;
@@ -386,27 +382,35 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         PICKUP_OBJECT_DOF >= 0 &&
         ACT_PICK_ARM.every((i) => i >= 0) &&
         ACT_PICK_FINGERS.every((i) => i >= 0);
+      if (!canPick) {
+        // The "Pick & Place" button is always rendered (see the wave
+        // button's own precedent) and silently no-ops if unsupported --
+        // fine for an old build missing the feature entirely, but
+        // indistinguishable from "the button does nothing" if the loaded
+        // scene *should* support it and one lookup below just failed (e.g.
+        // a stale cached /mujoco/scene/humanoid.xml missing the object/weld
+        // a newer build added). Logged once at load time so that's not a
+        // silent dead end to debug from the user's report alone.
+        console.warn("[MujocoViewer] Pick & Place unavailable in this scene:", {
+          canDrive,
+          YAW_QPOS_ADR,
+          EQ_GRASP_WELD,
+          PICKUP_OBJECT_DOF,
+          missingArmActuators: PICK_ARM_JOINTS.filter((_, i) => ACT_PICK_ARM[i] < 0),
+          missingFingerActuators: PICK_FINGER_JOINTS.filter((_, i) => ACT_PICK_FINGERS[i] < 0),
+        });
+      }
 
       const pressedKeys = new Set<string>();
-      // Seconds of *simulated* time since the wave started, or null when
-      // idle -- advanced once per mj_step below, never from wall-clock time.
-      // A first version used performance.now() sampled once per rendered
-      // frame, then applied that single ctrl value across every physics
-      // sub-step the catch-up loop ran that frame. Any real hitch (a slow
-      // frame, e.g. while the tab is busy elsewhere) made the fast wrist
-      // oscillation's target jump discontinuously once the catch-up loop
-      // resumed, and the sudden correction was enough to fling the
-      // fingers' own light, weakly-actuated joints -- reproduced by
-      // stalling the render loop mid-wave, never reproducible in a
-      // fixed-timestep offline check since nothing there can hitch. Ticking
-      // this once per physics step instead makes the wave immune to frame
-      // timing by construction.
-      let waveElapsedS: number | null = null;
 
       // Pick & Place state -- see the PICK_* constants above for the phase
-      // list/durations. Ticked in simulated time, same as waveElapsedS and
-      // for the same reason. pickDriveVX/VY hold the autopilot's own
-      // current commanded velocity across steps, for its acceleration ramp.
+      // list/durations. Ticked once per physics step inside the substep
+      // catch-up loop below (never from wall-clock/performance.now()) so a
+      // slow/backgrounded render frame can't desync it -- a real hitch would
+      // otherwise make a fast-moving target jump discontinuously once the
+      // catch-up loop resumes and fast-forwards several steps at once.
+      // pickDriveVX/VY hold the autopilot's own current commanded velocity
+      // across steps, for its acceleration ramp.
       let pickPhase: PickPhase = "idle";
       let pickPhaseElapsedS = 0;
       let pickDriveVX = 0;
@@ -418,6 +422,11 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       // the offline IK assumed; Pick & Place forces it back to LIFT_MIN
       // for the same reason if the user had raised it before starting.
       let liftHeight = LIFT_MIN;
+      // Waist bend target (F/R teleop, see BEND_RATE's own comment). Starts
+      // at 0 (straight) for the same reason liftHeight starts at LIFT_MIN --
+      // every PICK_*_QPOS arm pose was solved with the waist straight, so
+      // Pick & Place forces this back to 0 too.
+      let bendAngle = 0;
 
       // FPP head look-around: drag to turn the head like OrbitControls'
       // drag-to-orbit, just clamped to a human-ish range and re-centered
@@ -464,16 +473,6 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
           window.removeEventListener("pointermove", onPointerMove);
           window.removeEventListener("pointerup", onPointerUp);
         };
-
-        if (canWave) {
-          waveRef.current = () => {
-            // Ignored while a Pick & Place sequence is running -- they
-            // share this same right arm (see PICK_ARM_JOINTS), so both
-            // driving it at once would just fight over the same ctrl
-            // values.
-            if (pickPhase === "idle") waveElapsedS = 0;
-          };
-        }
 
         if (canPick) {
           pickRef.current = () => {
@@ -554,40 +553,6 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
           lastFrameTime = now;
           const dtS = timestepMs / 1000;
           while (remaining > 0) {
-            // Scripted wave: rise -> oscillate the wrist a few times ->
-            // lower. Computed fresh every physics step (see waveElapsedS's
-            // comment above) so it can't desync from wall-clock frame
-            // timing.
-            if (canWave && pickPhase === "idle") {
-              let shoulder = 0;
-              let elbow = 0;
-              let wrist = 0;
-              if (waveElapsedS !== null) {
-                const t = waveElapsedS;
-                if (t < WAVE_RISE_S) {
-                  const f = smoothstep(t / WAVE_RISE_S);
-                  shoulder = WAVE_SHOULDER_TARGET * f;
-                  elbow = WAVE_ELBOW_TARGET * f;
-                  wrist = WAVE_WRIST_CENTER * f;
-                } else if (t < WAVE_RISE_S + WAVE_HOLD_S) {
-                  shoulder = WAVE_SHOULDER_TARGET;
-                  elbow = WAVE_ELBOW_TARGET;
-                  wrist = WAVE_WRIST_CENTER + WAVE_WRIST_AMPLITUDE * Math.sin(2 * Math.PI * WAVE_WRIST_HZ * (t - WAVE_RISE_S));
-                } else if (t < WAVE_DURATION_S) {
-                  const f = 1 - smoothstep((t - WAVE_RISE_S - WAVE_HOLD_S) / WAVE_LOWER_S);
-                  shoulder = WAVE_SHOULDER_TARGET * f;
-                  elbow = WAVE_ELBOW_TARGET * f;
-                  wrist = WAVE_WRIST_CENTER * f;
-                } else {
-                  waveElapsedS = null;
-                }
-              }
-              data.ctrl[ACT_WAVE_SHOULDER] = shoulder;
-              data.ctrl[ACT_WAVE_ELBOW] = elbow;
-              data.ctrl[ACT_WAVE_WRIST] = wrist;
-              if (waveElapsedS !== null) waveElapsedS += dtS;
-            }
-
             // Lift column teleop (U/L) -- disabled mid-sequence (forced back
             // to LIFT_MIN instead, see the Pick & Place block below) so a
             // height change never invalidates its offline-solved arm poses.
@@ -595,6 +560,16 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
               const liftInput = (pressedKeys.has("u") ? 1 : 0) - (pressedKeys.has("l") ? 1 : 0);
               liftHeight = Math.max(LIFT_MIN, Math.min(LIFT_MAX, liftHeight + liftInput * LIFT_RATE * dtS));
               data.ctrl[ACT_LIFT] = liftHeight;
+            }
+
+            // Waist bend teleop (F/R) -- same hold-to-move/disabled-mid-
+            // sequence pattern as the lift column above. F bends forward
+            // (negative, see BEND_MAX's own comment on the sign convention);
+            // R straightens back toward 0.
+            if (canBend && pickPhase === "idle") {
+              const bendInput = (pressedKeys.has("r") ? 1 : 0) - (pressedKeys.has("f") ? 1 : 0);
+              bendAngle = Math.max(BEND_MIN, Math.min(0, bendAngle + bendInput * BEND_RATE * dtS));
+              data.ctrl[ACT_BEND] = bendAngle;
             }
 
             // Scripted Pick & Place: see the PICK_* constants' own comments
@@ -708,11 +683,16 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
 
               for (let i = 0; i < ACT_PICK_ARM.length; i++) data.ctrl[ACT_PICK_ARM[i]] = armTarget[i];
               for (let i = 0; i < ACT_PICK_FINGERS.length; i++) data.ctrl[ACT_PICK_FINGERS[i]] = fingerTarget[i];
-              // Every PICK_*_QPOS arm target was solved at LIFT_MIN -- force
-              // it there regardless of whatever the user last set with U/L.
+              // Every PICK_*_QPOS arm target was solved at LIFT_MIN with the
+              // waist straight -- force both regardless of whatever the user
+              // last set with U/L/F/R.
               if (canLift) {
                 liftHeight = LIFT_MIN;
                 data.ctrl[ACT_LIFT] = LIFT_MIN;
+              }
+              if (canBend) {
+                bendAngle = 0;
+                data.ctrl[ACT_BEND] = 0;
               }
 
               pickPhaseElapsedS += dtS;
@@ -820,9 +800,6 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       <button onClick={() => resetRef.current()} className={buttonClass}>
         Reset
       </button>
-      <button onClick={() => waveRef.current()} className={buttonClass}>
-        Wave 👋
-      </button>
       <button onClick={() => pickRef.current()} className={buttonClass}>
         Pick & Place 📦
       </button>
@@ -868,13 +845,13 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
               </>
             ) : view === "orbit" ? (
               <>
-                <span className="text-off-white">W A S D</span> to drive · <span className="text-off-white">U / L</span> height ·
-                orbit-drag to look
+                <span className="text-off-white">W A S D</span> to drive · <span className="text-off-white">U / L</span> height ·{" "}
+                <span className="text-off-white">F / R</span> bend · orbit-drag to look
               </>
             ) : (
               <>
-                <span className="text-off-white">W A S D</span> to drive · <span className="text-off-white">U / L</span> height ·
-                fixed camera view
+                <span className="text-off-white">W A S D</span> to drive · <span className="text-off-white">U / L</span> height ·{" "}
+                <span className="text-off-white">F / R</span> bend · fixed camera view
               </>
             )}
           </div>

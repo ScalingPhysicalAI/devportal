@@ -1026,11 +1026,13 @@ def main() -> None:
             shutil.copy2(stl, OUTPUT_MESHES_DIR / stl.name)
     mjcf_text = mjcf_text.replace('file="../meshes/', 'file="meshes/')
 
-    # See DUMMY_ACTUATOR_MESHES/hide_dummy_actuator_meshes()'s own comment:
-    # these were hidden, then un-hidden at the user's request, and are now
-    # re-hidden at a later request once real joint motion made the
-    # single-sided-bracket gap read as broken rather than cosmetic.
-    mjcf_text = hide_dummy_actuator_meshes(mjcf_text)
+    # hide_dummy_actuator_meshes() is NOT called here (left defined, in case
+    # a future joint's own mesh gap turns out not to be a jnt_pos bug the
+    # way the rest of the arm chain's was): the actual cause of these
+    # brackets visibly separating during motion was every joint's rotation
+    # pivot sitting up to 1.3m from its own mesh (see
+    # recenter_arm_joint_anchors() above) -- fixed there, not by hiding
+    # anything. Brought back per the user's own request once that was fixed.
     mjcf_text = disable_wheel_floor_collision(mjcf_text)
 
     # Floor + the lab room (walls + furniture) the mobile base can drive
