@@ -281,6 +281,30 @@ export function buildSceneFromModel(mujoco: Mujoco, model: MjModel): BuiltScene 
       model.geom_rgba[g * 4 + 2],
       model.geom_rgba[g * 4 + 3],
     ];
+    // The CAD export's own un-materialed geoms (the actual robot mesh parts)
+    // all carry this exact uniform placeholder rgba -- it was never real
+    // per-part color data, which is why those get recolored by *name*
+    // instead (BLACK_MESH_NAME) a few lines below. Room dressing added
+    // straight into the MJCF by urdf_to_mjcf.py's _build_room()/
+    // _build_pickup_object() (tables, crates, walls, the pickup object) has
+    // no <material> either (geom_matid is -1 there too, same as the robot),
+    // but *does* carry a deliberate, non-placeholder rgba of its own --
+    // without this check that color was being silently discarded and
+    // overwritten with the same name-based fallback as the robot, which is
+    // why the crates' distinct colors (_CRATE_RGBAS) never actually showed.
+    // Epsilon compare, not === : model.geom_rgba is a Float32Array, so a
+    // value written as "0.7" comes back as that float32's nearest float64
+    // (e.g. 0.699999988...), which never === the JS literal 0.7. With
+    // strict equality this was always false, so *no* robot geom ever hit
+    // the placeholder branch below -- every part that should have split
+    // into the black/silver two-tone by name instead kept its raw
+    // (silver-ish but not quite) rgba verbatim, reading as a flat pale
+    // grey/white across the whole robot under this scene's lighting.
+    const isPlaceholderRgba =
+      Math.abs(color[0] - 0.7) < 0.01 &&
+      Math.abs(color[1] - 0.7) < 0.01 &&
+      Math.abs(color[2] - 0.7) < 0.01 &&
+      Math.abs(color[3] - 1) < 0.01;
     if (model.geom_matid[g] !== -1) {
       const matId = model.geom_matid[g];
       color = [
@@ -289,7 +313,7 @@ export function buildSceneFromModel(mujoco: Mujoco, model: MjModel): BuiltScene 
         model.mat_rgba[matId * 4 + 2],
         model.mat_rgba[matId * 4 + 3],
       ];
-    } else {
+    } else if (isPlaceholderRgba) {
       color = BLACK_MESH_NAME.test(partName) ? FALLBACK_BLACK : FALLBACK_SILVER;
     }
 

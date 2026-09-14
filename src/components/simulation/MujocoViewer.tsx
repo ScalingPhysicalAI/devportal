@@ -22,6 +22,14 @@ const ENGINE_URL = "/mujoco/engine/mujoco.js";
 const DRIVE_SPEED = 0.8; // m/s
 const TURN_SPEED = 1.0; // rad/s
 const DRIVE_WHEEL_RADIUS = 0.1015; // m
+// The telescoping lift column between the wheel base and the torso ("Slider
+// 2" in the CAD export -- a real prismatic joint, not cosmetic: raising it
+// visibly lifts the chest/head/arms as one rigid unit relative to the wheel
+// base). U raises, L lowers, holding at whatever height the key was
+// released at (a position target, not a velocity) -- ctrlrange itself
+// (read from the model, not hardcoded) already caps it to what the column
+// can physically extend.
+const LIFT_RATE = 0.15; // m/s while U or L is held
 // Which of base_link's own local axes points where the robot actually
 // faces -- see getBodyAxisXY's comment. Confirmed empirically (not
 // guessed): local X is the line straight through both hands (i.e. side to
@@ -103,6 +111,101 @@ function smoothstep(x: number): number {
   return t * t * (3 - 2 * t);
 }
 
+function lerpArr(a: number[], b: number[], t: number): number[] {
+  return a.map((v, i) => v + (b[i] - v) * t);
+}
+
+// Scripted "Pick & Place" demo: drives to bench_n1 (where urdf_to_mjcf.py's
+// _build_pickup_object() spawns a small box), grabs it with the same right
+// arm/hand the wave gesture uses, carries it to bench_n2, and sets it down.
+// The six arm joint targets below were solved offline via numeric IK against
+// this same model (see model/scripts/urdf_to_mjcf.py's matching PICK_*
+// constants and _build_grasp_weld()'s own comment for the full derivation
+// and for why holding the object is a weld constraint, not finger contact
+// alone) -- this file's PICK_ARM_JOINTS/PICK_GRASP_QPOS/PICK_PREGRASP_QPOS
+// must stay byte-for-byte in sync with that script's copies, or the reach
+// will miss where the object actually is and/or land somewhere the
+// pre-baked weld offset doesn't match.
+const PICK_ARM_JOINTS = ["Revolute 5", "Revolute 7", "Revolute 9", "Revolute 11", "Revolute 26", "Revolute 43"];
+const PICK_REST_QPOS = [0, 0, 0, 0, 0, 0];
+const PICK_PREGRASP_QPOS = [-0.5884, 0.8807, -0.1608, 0.0012, -0.1425, 0.3047];
+const PICK_GRASP_QPOS = [-0.5666, 0.9047, -0.1661, -0.0047, -0.1486, 0.1785];
+// All 15 right-hand finger joints (4 fingers + thumb, 3 joints each). Each
+// one closes toward its own lower jnt_range limit and opens toward its
+// upper limit -- confirmed empirically, not assumed: sweeping each joint
+// end to end and checking which end brings that finger's tip closer to the
+// other fingers' tips gave the same answer (low = closer) for all 15,
+// including the thumb -- whose own chain, even fully curled, still lands
+// about half a metre from the other four fingertips regardless of joint
+// values, i.e. it doesn't actually oppose them. That's why the grasp below
+// is a weld, not finger-contact friction: the four fingers that do converge
+// approach the object from only one side, with nothing to press it against.
+const PICK_FINGER_JOINTS = [
+  "Revolute 48", "Revolute 49", "Revolute 50", "Revolute 51", "Revolute 52",
+  "Revolute 53", "Revolute 54", "Revolute 55", "Revolute 56", "Revolute 57",
+  "Revolute 58", "Revolute 59", "Revolute 60", "Revolute 61", "Revolute 62",
+];
+// Where the base must be parked (world x, y, and a fixed heading) for
+// PICK_GRASP_QPOS to actually reach the object -- see
+// model/scripts/urdf_to_mjcf.py's PICK_PARK_POSE for the full derivation.
+// bench_n2's park spot is the same point mirrored in x (the two benches are
+// otherwise identical and identically-facing, see _build_room()).
+const PICK_PARK_PICK: [number, number] = [-3.0, 4.1];
+const PICK_PARK_PLACE: [number, number] = [3.0, 4.1];
+const PICK_PARK_YAW = Math.PI; // faces +Y (north), toward either bench
+
+// Autopilot driving, used only by this scripted sequence (never WASD
+// teleop): plain world-frame position P-control with an acceleration ramp
+// on virtual_base_x/y. Unlike the base's *forward* drive (which projects
+// onto the body's current heading, see getBodyAxisXY's own comment), these
+// two joints are literal world-X/world-Y translations independent of
+// heading -- confirmed via headless sim -- so driving to a world point needs
+// no heading math at all, only distance. Yaw is held at PICK_PARK_YAW by a
+// separate P-loop, active through every phase below (not just while
+// driving): left alone, virtual_base_yaw slowly drifts under any small
+// disturbance (confirmed via headless sim -- it is not spring-loaded back
+// to anything on its own), which would throw off every joint-space arm
+// target below, all of which assume the base is exactly facing
+// PICK_PARK_YAW.
+const PICK_DRIVE_KP = 1.2;
+// Faster than WASD's own DRIVE_SPEED -- purely demo pacing (a scripted
+// sequence looks better moving briskly than crawling across a 12x12m
+// room), not a workaround. See GRASP_WELD_ANCHOR_BODY in
+// model/scripts/urdf_to_mjcf.py for why the carry itself is solid at any
+// reasonable speed here (an earlier weld anchor choice made this whole
+// sequence only marginally stable regardless of speed -- fixed by
+// anchoring the weld to the hand instead, not by driving faster).
+const PICK_DRIVE_MAX_SPEED = 1.4; // m/s
+const PICK_DRIVE_MAX_ACCEL = 1.2; // m/s^2
+const PICK_DRIVE_ARRIVE_DIST = 0.05; // m
+const PICK_YAW_KP = 3.0;
+const PICK_YAW_MAX_RATE = 1.5; // rad/s
+
+// Phase durations, in seconds of simulated time -- ticked once per physics
+// step inside the same catch-up loop as the wave gesture, for the same
+// reason (see waveElapsedS's own comment: immune to render-frame hitches by
+// construction, since nothing here reads wall-clock time).
+const PICK_REACH_S = 1.2; // rest -> pregrasp
+const PICK_LOWER_S = 0.9; // pregrasp -> grasp
+const PICK_CLOSE_S = 0.7; // fingers open -> closed
+const PICK_SETTLE_S = 0.3; // brief pause right after the weld grabs, before lifting
+const PICK_LIFT_S = 0.9; // grasp -> pregrasp, now holding the object
+const PICK_RELEASE_S = 0.7; // fingers closed -> open
+const PICK_RETRACT_S = 1.2; // grasp -> rest
+
+type PickPhase =
+  | "idle"
+  | "driveToPick"
+  | "reach"
+  | "lower"
+  | "close"
+  | "settle"
+  | "lift"
+  | "driveToPlace"
+  | "lowerPlace"
+  | "release"
+  | "retract";
+
 interface MujocoViewerProps {
   /** Enables orbit camera controls, WASD driving, the wave gesture, and the pause/reset/wave overlay. */
   interactive?: boolean;
@@ -120,6 +223,7 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
   const viewRef = useRef(view);
   const resetRef = useRef<() => void>(() => {});
   const waveRef = useRef<() => void>(() => {});
+  const pickRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -218,6 +322,14 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         mujoco.mj_resetData(model, data);
         mujoco.mj_forward(model, data);
         waveElapsedS = null;
+        // mj_resetData already puts the weld back to inactive and the
+        // pickup object back at its qpos0 spawn point on bench_n1 -- this
+        // just resets the *sequence's own* bookkeeping to match.
+        pickPhase = "idle";
+        pickPhaseElapsedS = 0;
+        pickDriveVX = 0;
+        pickDriveVY = 0;
+        liftHeight = LIFT_MIN;
       };
 
       // --- Teleop + wave actuator lookups -----------------------------
@@ -236,10 +348,44 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       const ACT_WAVE_SHOULDER = actId("act_Revolute 5");
       const ACT_WAVE_ELBOW = actId("act_Revolute 11");
       const ACT_WAVE_WRIST = actId("act_Revolute 43");
+      const ACT_LIFT = actId("act_Slider 2");
       const BASE_BODY = mujoco.mj_name2id(model, OBJ_BODY, "base_link");
       const canDrive = ACT_VX >= 0 && ACT_VY >= 0 && ACT_YAW >= 0 && BASE_BODY >= 0;
       const canWave = ACT_WAVE_SHOULDER >= 0 && ACT_WAVE_ELBOW >= 0 && ACT_WAVE_WRIST >= 0;
       const canFpp = canDrive;
+      const canLift = ACT_LIFT >= 0;
+      const LIFT_MIN = canLift ? model.actuator_ctrlrange[ACT_LIFT * 2] : 0;
+      const LIFT_MAX = canLift ? model.actuator_ctrlrange[ACT_LIFT * 2 + 1] : 0;
+
+      // --- Pick & Place lookups ---------------------------------------
+      const OBJ_JOINT = mujoco.mjtObj.mjOBJ_JOINT.value;
+      const OBJ_EQUALITY = mujoco.mjtObj.mjOBJ_EQUALITY.value;
+      const jointId = (name: string): number => mujoco.mj_name2id(model, OBJ_JOINT, name);
+      const ACT_PICK_ARM = PICK_ARM_JOINTS.map(actId);
+      const ACT_PICK_FINGERS = PICK_FINGER_JOINTS.map(actId);
+      // Each finger joint's own [lo, hi] range, read from the model rather
+      // than hardcoded -- lo is "closed", hi is "open" (see
+      // PICK_FINGER_JOINTS' own comment).
+      const PICK_FINGER_CLOSED = PICK_FINGER_JOINTS.map((name) => {
+        const jid = jointId(name);
+        return jid >= 0 ? model.jnt_range[jid * 2] : 0;
+      });
+      const PICK_FINGER_OPEN = PICK_FINGER_JOINTS.map((name) => {
+        const jid = jointId(name);
+        return jid >= 0 ? model.jnt_range[jid * 2 + 1] : 0;
+      });
+      const YAW_JOINT = jointId("virtual_base_yaw");
+      const YAW_QPOS_ADR = YAW_JOINT >= 0 ? model.jnt_qposadr[YAW_JOINT] : -1;
+      const EQ_GRASP_WELD = mujoco.mj_name2id(model, OBJ_EQUALITY, "grasp_weld");
+      const PICKUP_OBJECT_JOINT = jointId("pickup_object_free");
+      const PICKUP_OBJECT_DOF = PICKUP_OBJECT_JOINT >= 0 ? model.jnt_dofadr[PICKUP_OBJECT_JOINT] : -1;
+      const canPick =
+        canDrive &&
+        YAW_QPOS_ADR >= 0 &&
+        EQ_GRASP_WELD >= 0 &&
+        PICKUP_OBJECT_DOF >= 0 &&
+        ACT_PICK_ARM.every((i) => i >= 0) &&
+        ACT_PICK_FINGERS.every((i) => i >= 0);
 
       const pressedKeys = new Set<string>();
       // Seconds of *simulated* time since the wave started, or null when
@@ -256,6 +402,22 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       // this once per physics step instead makes the wave immune to frame
       // timing by construction.
       let waveElapsedS: number | null = null;
+
+      // Pick & Place state -- see the PICK_* constants above for the phase
+      // list/durations. Ticked in simulated time, same as waveElapsedS and
+      // for the same reason. pickDriveVX/VY hold the autopilot's own
+      // current commanded velocity across steps, for its acceleration ramp.
+      let pickPhase: PickPhase = "idle";
+      let pickPhaseElapsedS = 0;
+      let pickDriveVX = 0;
+      let pickDriveVY = 0;
+
+      // Lift column height target (U/L teleop, see LIFT_RATE's own
+      // comment). Starts at LIFT_MIN -- the height every PICK_*_QPOS arm
+      // pose was solved against -- so a fresh load reaches exactly where
+      // the offline IK assumed; Pick & Place forces it back to LIFT_MIN
+      // for the same reason if the user had raised it before starting.
+      let liftHeight = LIFT_MIN;
 
       // FPP head look-around: drag to turn the head like OrbitControls'
       // drag-to-orbit, just clamped to a human-ish range and re-centered
@@ -305,7 +467,22 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
 
         if (canWave) {
           waveRef.current = () => {
-            waveElapsedS = 0;
+            // Ignored while a Pick & Place sequence is running -- they
+            // share this same right arm (see PICK_ARM_JOINTS), so both
+            // driving it at once would just fight over the same ctrl
+            // values.
+            if (pickPhase === "idle") waveElapsedS = 0;
+          };
+        }
+
+        if (canPick) {
+          pickRef.current = () => {
+            if (pickPhase === "idle") {
+              pickPhase = "driveToPick";
+              pickPhaseElapsedS = 0;
+              pickDriveVX = 0;
+              pickDriveVY = 0;
+            }
           };
         }
       }
@@ -357,7 +534,7 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         // only one left. Wheel spin (cosmetic -- see DRIVE_WHEEL_RADIUS) is
         // kept in sync with commanded speed, not derived from ground
         // contact.
-        if (canDrive) {
+        if (canDrive && pickPhase === "idle") {
           const forward = (pressedKeys.has("w") ? 1 : 0) - (pressedKeys.has("s") ? 1 : 0);
           const turn = (pressedKeys.has("a") ? 1 : 0) - (pressedKeys.has("d") ? 1 : 0);
           const [fx, fy] = getBodyAxisXY(data.xmat, BASE_BODY, BASE_FORWARD_AXIS);
@@ -381,7 +558,7 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
             // lower. Computed fresh every physics step (see waveElapsedS's
             // comment above) so it can't desync from wall-clock frame
             // timing.
-            if (canWave) {
+            if (canWave && pickPhase === "idle") {
               let shoulder = 0;
               let elbow = 0;
               let wrist = 0;
@@ -409,6 +586,136 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
               data.ctrl[ACT_WAVE_ELBOW] = elbow;
               data.ctrl[ACT_WAVE_WRIST] = wrist;
               if (waveElapsedS !== null) waveElapsedS += dtS;
+            }
+
+            // Lift column teleop (U/L) -- disabled mid-sequence (forced back
+            // to LIFT_MIN instead, see the Pick & Place block below) so a
+            // height change never invalidates its offline-solved arm poses.
+            if (canLift && pickPhase === "idle") {
+              const liftInput = (pressedKeys.has("u") ? 1 : 0) - (pressedKeys.has("l") ? 1 : 0);
+              liftHeight = Math.max(LIFT_MIN, Math.min(LIFT_MAX, liftHeight + liftInput * LIFT_RATE * dtS));
+              data.ctrl[ACT_LIFT] = liftHeight;
+            }
+
+            // Scripted Pick & Place: see the PICK_* constants' own comments
+            // for the phase list, timings, and the offline-solved arm
+            // targets. Advances pickPhaseElapsedS the same way waveElapsedS
+            // advances above, for the same frame-hitch-immunity reason.
+            if (canPick && pickPhase !== "idle") {
+              // Yaw hold, active through every phase -- see PICK_YAW_KP's
+              // own comment on why this can't be left uncontrolled.
+              const yawErr = Math.atan2(Math.sin(PICK_PARK_YAW - data.qpos[YAW_QPOS_ADR]), Math.cos(PICK_PARK_YAW - data.qpos[YAW_QPOS_ADR]));
+              data.ctrl[ACT_YAW] = Math.max(-PICK_YAW_MAX_RATE, Math.min(PICK_YAW_MAX_RATE, PICK_YAW_KP * yawErr));
+
+              const t = pickPhaseElapsedS;
+              let armTarget = PICK_REST_QPOS;
+              let fingerTarget = PICK_FINGER_OPEN;
+              let driveTarget: [number, number] | null = null;
+
+              if (pickPhase === "driveToPick") {
+                driveTarget = PICK_PARK_PICK;
+              } else if (pickPhase === "reach") {
+                armTarget = lerpArr(PICK_REST_QPOS, PICK_PREGRASP_QPOS, smoothstep(t / PICK_REACH_S));
+                if (t >= PICK_REACH_S) {
+                  pickPhase = "lower";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "lower") {
+                armTarget = lerpArr(PICK_PREGRASP_QPOS, PICK_GRASP_QPOS, smoothstep(t / PICK_LOWER_S));
+                if (t >= PICK_LOWER_S) {
+                  pickPhase = "close";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "close") {
+                armTarget = PICK_GRASP_QPOS;
+                fingerTarget = lerpArr(PICK_FINGER_OPEN, PICK_FINGER_CLOSED, smoothstep(t / PICK_CLOSE_S));
+                if (t >= PICK_CLOSE_S) {
+                  pickPhase = "settle";
+                  pickPhaseElapsedS = 0;
+                  // The instant the fingers finish closing: engage the
+                  // weld (see _build_grasp_weld()'s comment for why this
+                  // is a weld, not finger-contact friction) and clear any
+                  // residual velocity the object's own free joint picked
+                  // up while just sitting there, so it doesn't carry that
+                  // into the constraint at the moment it engages.
+                  data.eq_active[EQ_GRASP_WELD] = 1;
+                  for (let k = 0; k < 6; k++) data.qvel[PICKUP_OBJECT_DOF + k] = 0;
+                }
+              } else if (pickPhase === "settle") {
+                armTarget = PICK_GRASP_QPOS;
+                fingerTarget = PICK_FINGER_CLOSED;
+                if (t >= PICK_SETTLE_S) {
+                  pickPhase = "lift";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "lift") {
+                armTarget = lerpArr(PICK_GRASP_QPOS, PICK_PREGRASP_QPOS, smoothstep(t / PICK_LIFT_S));
+                fingerTarget = PICK_FINGER_CLOSED;
+                if (t >= PICK_LIFT_S) {
+                  pickPhase = "driveToPlace";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "driveToPlace") {
+                armTarget = PICK_PREGRASP_QPOS;
+                fingerTarget = PICK_FINGER_CLOSED;
+                driveTarget = PICK_PARK_PLACE;
+              } else if (pickPhase === "lowerPlace") {
+                armTarget = lerpArr(PICK_PREGRASP_QPOS, PICK_GRASP_QPOS, smoothstep(t / PICK_LOWER_S));
+                fingerTarget = PICK_FINGER_CLOSED;
+                if (t >= PICK_LOWER_S) {
+                  pickPhase = "release";
+                  pickPhaseElapsedS = 0;
+                  data.eq_active[EQ_GRASP_WELD] = 0;
+                }
+              } else if (pickPhase === "release") {
+                armTarget = PICK_GRASP_QPOS;
+                fingerTarget = lerpArr(PICK_FINGER_CLOSED, PICK_FINGER_OPEN, smoothstep(t / PICK_RELEASE_S));
+                if (t >= PICK_RELEASE_S) {
+                  pickPhase = "retract";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "retract") {
+                armTarget = lerpArr(PICK_GRASP_QPOS, PICK_REST_QPOS, smoothstep(t / PICK_RETRACT_S));
+                fingerTarget = PICK_FINGER_OPEN;
+                if (t >= PICK_RETRACT_S) {
+                  pickPhase = "idle";
+                  pickPhaseElapsedS = 0;
+                }
+              }
+
+              if (driveTarget) {
+                const ex = driveTarget[0] - data.xpos[BASE_BODY * 3 + 0];
+                const ey = driveTarget[1] - data.xpos[BASE_BODY * 3 + 1];
+                const dist = Math.hypot(ex, ey);
+                if (dist < PICK_DRIVE_ARRIVE_DIST) {
+                  pickDriveVX = 0;
+                  pickDriveVY = 0;
+                  pickPhase = pickPhase === "driveToPick" ? "reach" : "lowerPlace";
+                  pickPhaseElapsedS = 0;
+                } else {
+                  const desiredVX = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_DRIVE_KP * ex));
+                  const desiredVY = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_DRIVE_KP * ey));
+                  const maxDelta = PICK_DRIVE_MAX_ACCEL * dtS;
+                  pickDriveVX += Math.max(-maxDelta, Math.min(maxDelta, desiredVX - pickDriveVX));
+                  pickDriveVY += Math.max(-maxDelta, Math.min(maxDelta, desiredVY - pickDriveVY));
+                }
+              } else {
+                pickDriveVX = 0;
+                pickDriveVY = 0;
+              }
+              data.ctrl[ACT_VX] = pickDriveVX;
+              data.ctrl[ACT_VY] = pickDriveVY;
+
+              for (let i = 0; i < ACT_PICK_ARM.length; i++) data.ctrl[ACT_PICK_ARM[i]] = armTarget[i];
+              for (let i = 0; i < ACT_PICK_FINGERS.length; i++) data.ctrl[ACT_PICK_FINGERS[i]] = fingerTarget[i];
+              // Every PICK_*_QPOS arm target was solved at LIFT_MIN -- force
+              // it there regardless of whatever the user last set with U/L.
+              if (canLift) {
+                liftHeight = LIFT_MIN;
+                data.ctrl[ACT_LIFT] = LIFT_MIN;
+              }
+
+              pickPhaseElapsedS += dtS;
             }
 
             mujoco.mj_step(model, data);
@@ -516,6 +823,9 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       <button onClick={() => waveRef.current()} className={buttonClass}>
         Wave 👋
       </button>
+      <button onClick={() => pickRef.current()} className={buttonClass}>
+        Pick & Place 📦
+      </button>
       <select
         value={view}
         onChange={(e) => setView(e.target.value as ViewMode)}
@@ -558,11 +868,13 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
               </>
             ) : view === "orbit" ? (
               <>
-                <span className="text-off-white">W A S D</span> to drive · orbit-drag to look
+                <span className="text-off-white">W A S D</span> to drive · <span className="text-off-white">U / L</span> height ·
+                orbit-drag to look
               </>
             ) : (
               <>
-                <span className="text-off-white">W A S D</span> to drive · fixed camera view
+                <span className="text-off-white">W A S D</span> to drive · <span className="text-off-white">U / L</span> height ·
+                fixed camera view
               </>
             )}
           </div>

@@ -127,6 +127,7 @@
           <joint name="virtual_base_yaw" actuatorfrcrange="-40 40" axis="0 1 0"/>
           <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="base_link"/>
           <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="base_link"/>
+          <geom name="lift_sleeve" type="box" pos="0.191000 0.562177 0.086750" size="0.064500 0.112500 0.060500" rgba="0.08 0.08 0.08 1" contype="0" conaffinity="0"/>
           <body gravcomp="1" name="wheelbase_lift_1" pos="0.2555 -0.01 0.08675">
             <inertial pos="-0.0669937 0.607829 0.000137511" quat="0.502161 0.497728 -0.503194 0.496887" mass="2.32765" diaginertia="0.0490221 0.0480686 0.00793223"/>
             <joint name="Slider 2" type="slide" range="0 0.3" actuatorfrcrange="-100 100" axis="0 1 0" damping="2.0"/>
@@ -134,60 +135,60 @@
             <geom pos="-0.2555 0.01 -0.08675" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wheelbase_lift_1"/>
             <body gravcomp="1" name="rotation_waist_joint_1" pos="0.0395 1.68836 0.03025">
               <inertial pos="-0.103209 -0.792823 -0.0272519" quat="0.185248 0.677641 0.223343 0.675725" mass="1.18908" diaginertia="0.00348547 0.00334766 0.00153143"/>
-              <joint name="Revolute 3" axis="0 -1 0" damping="1.0"/>
+              <joint name="Revolute 3" pos="-0.0557143 -0.833911 0.0187388" axis="0 -1 0" damping="1.0"/>
               <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_waist_joint_1"/>
               <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_waist_joint_1"/>
-              <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_stepper_dummy_1"/>
-              <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_stepper_dummy_1"/>
+              <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_stepper_dummy_1" group="3"/>
+              <geom pos="-0.295 -1.67836 -0.117" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_stepper_dummy_1" group="3"/>
               <body gravcomp="1" name="chest_enclosure_2_1" pos="-0.999277 -0.746828 -0.29825">
                 <inertial pos="0.888444 0.241079 0.26317" quat="0.511651 0.493597 -0.517464 0.476242" mass="3.67797" diaginertia="0.121129 0.104655 0.0294736"/>
-                <joint name="Revolute 4" range="-1.91986 0" actuatorfrcrange="-100 100" axis="-1 0 0" damping="2.0"/>
+                <joint name="Revolute 4" range="-1.91986 0" actuatorfrcrange="-100 100" pos="0.794777 -0.0809921 0.310243" axis="-1 0 0" damping="2.0"/>
                 <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="chest_enclosure_2_1"/>
                 <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="chest_enclosure_2_1"/>
-                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_1"/>
-                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_1"/>
-                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_2"/>
-                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_2"/>
+                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_1" group="3"/>
+                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_1" group="3"/>
+                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_2" group="3"/>
+                <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_2" group="3"/>
                 <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="chest_enclosure_2_front_1"/>
                 <geom pos="0.704277 -0.931527 0.18125" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="chest_enclosure_2_front_1"/>
                 <body gravcomp="1" name="rotation_shoulder_joint_1" pos="0.806027 1.23403 0.2925">
                   <inertial pos="-0.0684915 -0.848778 -0.0201098" quat="0.695871 0.125554 0.125554 0.695871" mass="0.66616" diaginertia="0.000920944 0.000831363 0.000767581"/>
-                  <joint name="Revolute 5" range="-3.14159 0.785398" actuatorfrcrange="-100 100" axis="1 0 0" damping="2.0"/>
+                  <joint name="Revolute 5" range="-3.14159 0.785398" actuatorfrcrange="-100 100" pos="-0.02235 -0.804778 -0.0245002" axis="1 0 0" damping="2.0"/>
                   <geom pos="-0.10175 -2.16555 -0.11125" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_shoulder_joint_1"/>
                   <geom pos="-0.10175 -2.16555 -0.11125" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_shoulder_joint_1"/>
-                  <geom pos="-0.10175 -2.16556 -0.11125" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_3"/>
-                  <geom pos="-0.10175 -2.16556 -0.11125" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_3"/>
+                  <geom pos="-0.10175 -2.16556 -0.11125" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_3" group="3"/>
+                  <geom pos="-0.10175 -2.16556 -0.11125" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_3" group="3"/>
                   <body gravcomp="1" name="rotation_arm_joint_1" pos="-0.1621 -0.820378 -1.34128">
                     <inertial pos="0.08875 -0.0572699 1.34421" quat="0.663243 -0.24517 0.24517 0.663243" mass="0.121882" diaginertia="0.000235235 0.000204 0.000111765"/>
-                    <joint name="Revolute 7" range="0 3.14159" actuatorfrcrange="-100 100" axis="0 0 -1" damping="2.0"/>
+                    <joint name="Revolute 7" range="0 3.14159" actuatorfrcrange="-100 100" pos="0.0857473 0.0154979 1.36688" axis="0 0 -1" damping="2.0"/>
                     <geom pos="0.06035 -1.34518 1.23003" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_arm_joint_1"/>
                     <geom pos="0.06035 -1.34518 1.23003" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_arm_joint_1"/>
                     <body gravcomp="1" name="arm_joint_1" pos="0.06035 1.23738 1.28503">
                       <inertial pos="0.0235639 -1.41009 0.0268498" quat="0.495453 0.504506 -0.495453 0.504506" mass="1.28386" diaginertia="0.00485528 0.00461222 0.00155106"/>
-                      <joint name="Revolute 9" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 -1 0" damping="2.0"/>
+                      <joint name="Revolute 9" range="-1.5708 1.5708" actuatorfrcrange="-100 100" pos="0.0284 -1.31688 -0.0171502" axis="0 -1 0" damping="2.0"/>
                       <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="arm_joint_1"/>
                       <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="arm_joint_1"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_5"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_5"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_7"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_7"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_5" group="3"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_5" group="3"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_7" group="3"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_7" group="3"/>
                       <body gravcomp="1" name="forearm_joint_1" pos="-0.0432 -0.3432 0.1087">
                         <inertial pos="0.0596929 -1.21202 -0.0818502" quat="0.397769 0.584619 -0.397769 0.584619" mass="0.733876" diaginertia="0.00155363 0.00147194 0.000846688"/>
-                        <joint name="Revolute 11" range="-1.74533 1.74533" actuatorfrcrange="-100 100" axis="-1 0 0" damping="2.0"/>
+                        <joint name="Revolute 11" range="-1.74533 1.74533" actuatorfrcrange="-100 100" pos="0.0215 -1.11968 -0.0378502" axis="-1 0 0" damping="2.0"/>
                         <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="forearm_joint_1"/>
                         <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="forearm_joint_1"/>
-                        <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_10"/>
-                        <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_10"/>
+                        <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_10" group="3"/>
+                        <geom pos="0.0432 -2.23936 -0.1637" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_10" group="3"/>
                         <body gravcomp="1" name="servo_spacer_hand_1" pos="-0.01335 -2.23935 -0.10715">
                           <inertial pos="0.0723115 0.957657 0.0252998" quat="0.655684 0 0 0.755035" mass="0.0491123" diaginertia="6.31667e-05 5.08851e-05 2.60518e-05"/>
-                          <joint name="Revolute 26" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 -1 0" damping="2.0"/>
+                          <joint name="Revolute 26" range="-1.5708 1.5708" actuatorfrcrange="-100 100" pos="0.03605 0.973578 0.0726297" axis="0 -1 0" damping="2.0"/>
                           <geom pos="0.05655 0 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="servo_spacer_hand_1"/>
                           <geom pos="0.05655 0 -0.05655" type="mesh" rgba="0.7 0.7 0.7 1" mesh="servo_spacer_hand_1"/>
                           <geom pos="0.05655 0 -0.05655" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wrist_cover_1"/>
                           <geom pos="0.05655 0 -0.05655" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wrist_cover_1"/>
                           <body gravcomp="1" name="palm_right_1" pos="0.0235 0.0357 0">
                             <inertial pos="0.044103 0.815385 0.0251616" quat="0.717615 0.696404 -0.00531281 -0.00455146" mass="0.205779" diaginertia="0.000602117 0.000457754 0.000256792"/>
-                            <joint name="Revolute 43" range="-0.261799 1.5708" actuatorfrcrange="-100 100" damping="2.0"/>
+                            <joint name="Revolute 43" range="-0.261799 1.5708" actuatorfrcrange="-100 100" pos="0.0502186 0.903309 0.0497498" damping="2.0"/>
                             <geom pos="0.03305 -0.0357 -0.05655" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="palm_right_1"/>
                             <geom pos="0.03305 -0.0357 -0.05655" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="palm_right_1"/>
                             <geom pos="0.03305 -0.0357 -0.05655" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_1"/>
@@ -298,42 +299,42 @@
                 </body>
                 <body gravcomp="1" name="rotation_shoulder_joint_2" pos="0.806027 1.23403 0.5105">
                   <inertial pos="0.241992 -0.848778 -0.23811" quat="0.695871 -0.125554 -0.125554 0.695871" mass="0.66616" diaginertia="0.000920944 0.000831363 0.000767581"/>
-                  <joint name="Revolute 6" range="-0.785398 3.14159" actuatorfrcrange="-100 100" axis="-1 0 0" damping="2.0"/>
+                  <joint name="Revolute 6" range="-0.785398 3.14159" actuatorfrcrange="-100 100" pos="0.19585 -0.808269 -0.259677" axis="-1 0 0" damping="2.0"/>
                   <geom pos="-0.10175 -2.16555 -0.32925" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_shoulder_joint_2"/>
                   <geom pos="-0.10175 -2.16555 -0.32925" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_shoulder_joint_2"/>
-                  <geom pos="-0.10175 -2.16556 -0.32925" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_4"/>
-                  <geom pos="-0.10175 -2.16556 -0.32925" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_4"/>
+                  <geom pos="-0.10175 -2.16556 -0.32925" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_4" group="3"/>
+                  <geom pos="-0.10175 -2.16556 -0.32925" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_4" group="3"/>
                   <body gravcomp="1" name="rotation_arm_joint_2" pos="0.3356 -1.19738 -1.55928">
                     <inertial pos="-0.08875 0.31973 1.34421" quat="0.663243 -0.24517 0.24517 0.663243" mass="0.121882" diaginertia="0.000235235 0.000204 0.000111765"/>
-                    <joint name="Revolute 8" range="-3.14159 0" actuatorfrcrange="-100 100" axis="0 0 -1" damping="2.0"/>
+                    <joint name="Revolute 8" range="-3.14159 0" actuatorfrcrange="-100 100" pos="-0.08875 0.3926 1.36688" axis="0 0 -1" damping="2.0"/>
                     <geom pos="-0.43735 -0.968177 1.23003" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="rotation_arm_joint_2"/>
                     <geom pos="-0.43735 -0.968177 1.23003" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="rotation_arm_joint_2"/>
                     <body gravcomp="1" name="arm_joint_2" pos="-0.43735 1.61438 1.28503">
                       <inertial pos="0.353436 -1.41009 0.0268498" quat="0.504506 0.495453 -0.504506 0.495453" mass="1.28386" diaginertia="0.00485528 0.00461222 0.00155106"/>
-                      <joint name="Revolute 10" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 -1 0" damping="2.0"/>
+                      <joint name="Revolute 10" range="-1.5708 1.5708" actuatorfrcrange="-100 100" pos="0.3486 -1.31688 -0.0171502" axis="0 -1 0" damping="2.0"/>
                       <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="arm_joint_2"/>
                       <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="arm_joint_2"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_6"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_6"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_8"/>
-                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_8"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_6" group="3"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_6" group="3"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_8" group="3"/>
+                      <geom pos="0 -2.58256 -0.055" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_8" group="3"/>
                       <body gravcomp="1" name="forearm_joint_2" pos="0 -0.3432 -0.055">
                         <inertial pos="0.360507 -1.21202 0.0818498" quat="0.584619 0.397769 -0.584619 0.397769" mass="0.733876" diaginertia="0.00155363 0.00147194 0.000846688"/>
-                        <joint name="Revolute 12" range="-1.74533 1.74533" actuatorfrcrange="-100 100" axis="1 0 0" damping="2.0"/>
+                        <joint name="Revolute 12" range="-1.74533 1.74533" actuatorfrcrange="-100 100" pos="0.3987 -1.11968 0.0378498" axis="1 0 0" damping="2.0"/>
                         <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="forearm_joint_2"/>
                         <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="forearm_joint_2"/>
-                        <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_9"/>
-                        <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_9"/>
+                        <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" rgba="0.7 0.7 0.7 1" density="0" mesh="actuator_dummy_9" group="3"/>
+                        <geom pos="0 -2.23936 0" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="actuator_dummy_9" group="3"/>
                         <body gravcomp="1" name="servo_spacer_hand_2" pos="0.26985 -2.23935 -0.26985">
                           <inertial pos="0.0913885 0.957657 0.3517" quat="0.755035 0 0 0.655684" mass="0.0491123" diaginertia="6.31667e-05 5.08851e-05 2.60518e-05"/>
-                          <joint name="Revolute 27" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 -1 0" damping="2.0"/>
+                          <joint name="Revolute 27" range="-1.5708 1.5708" actuatorfrcrange="-100 100" pos="0.12765 0.973578 0.30437" axis="0 -1 0" damping="2.0"/>
                           <geom pos="-0.26985 0 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="servo_spacer_hand_2"/>
                           <geom pos="-0.26985 0 0.26985" type="mesh" rgba="0.7 0.7 0.7 1" mesh="servo_spacer_hand_2"/>
                           <geom pos="-0.26985 0 0.26985" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="wrist_cover_2"/>
                           <geom pos="-0.26985 0 0.26985" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="wrist_cover_2"/>
                           <body gravcomp="1" name="palm_left_1" pos="-0.0235 0.0357 0">
                             <inertial pos="0.119597 0.815385 0.351606" quat="0.717609 0.696411 0.00524294 0.0046221" mass="0.205779" diaginertia="0.000602119 0.000457754 0.000256794"/>
-                            <joint name="Revolute 64" range="-0.261799 1.5708" actuatorfrcrange="-100 100" axis="0 0 -1" damping="2.0"/>
+                            <joint name="Revolute 64" range="-0.261799 1.5708" actuatorfrcrange="-100 100" pos="0.111289 0.910443 0.32725" axis="0 0 -1" damping="2.0"/>
                             <geom pos="-0.24635 -0.0357 0.26985" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="palm_left_1"/>
                             <geom pos="-0.24635 -0.0357 0.26985" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="palm_left_1"/>
                             <geom pos="-0.24635 -0.0357 0.26985" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="finger_knuckle_5"/>
@@ -444,12 +445,12 @@
                 </body>
                 <body gravcomp="1" name="neck_joint_3dp_1" pos="0.76251 1.28803 0.4015">
                   <inertial pos="0.128221 -0.823348 -0.089983" quat="0.5 0.5 -0.5 0.5" mass="0.031209" diaginertia="2e-05 1.9e-05 1.2e-05"/>
-                  <joint name="Revolute 24" range="-1.5708 1.5708" actuatorfrcrange="-100 100" axis="0 1 0" damping="2.0"/>
+                  <joint name="Revolute 24" range="-1.5708 1.5708" actuatorfrcrange="-100 100" pos="0.127496 -0.848678 -0.0991743" axis="0 1 0" damping="2.0"/>
                   <geom pos="-0.058233 -2.21956 -0.22025" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="neck_joint_3dp_1"/>
                   <geom pos="-0.058233 -2.21956 -0.22025" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="neck_joint_3dp_1"/>
                   <body gravcomp="1" name="face_cover_3_1" pos="0.339917 0.56482 0.040284">
                     <inertial pos="-0.212908 -1.28395 -0.147047" quat="0.0220617 0.70037 0.0309964 0.712766" mass="0.25886" diaginertia="0.00140998 0.00110035 0.000604668"/>
-                    <joint name="Revolute 25" range="-1.5708 1.22173" actuatorfrcrange="-100 100" axis="-1 0 0" damping="2.0"/>
+                    <joint name="Revolute 25" range="-1.5708 1.22173" actuatorfrcrange="-100 100" pos="-0.1879 -1.37014 -0.120927" axis="-1 0 0" damping="2.0"/>
                     <geom pos="-0.39815 -2.78438 -0.260534" quat="1 0 0 0" type="mesh" contype="0" conaffinity="0" group="1" rgba="0.7 0.7 0.7 1" density="0" mesh="face_cover_3_1"/>
                     <geom pos="-0.39815 -2.78438 -0.260534" quat="1 0 0 0" type="mesh" rgba="0.7 0.7 0.7 1" mesh="face_cover_3_1"/>
                   </body>
@@ -496,59 +497,67 @@
         </body>
       </body>
     </body>
-  </worldbody>
+    <body name="pickup_object" pos="-3.0 4.85 0.79">
+    <freejoint name="pickup_object_free"/>
+    <inertial pos="0 0 0" mass="0.15" diaginertia="0.0001 0.0001 0.0001"/>
+    <geom name="pickup_object_geom" type="box" size="0.04 0.04 0.04" rgba="0.95 0.45 0.1 1" contype="8" conaffinity="5" friction="1.2 0.01 0.0002"/>
+  </body>
+</worldbody>
 <actuator>
-  <position name="act_Slider 2" joint="Slider 2" kp="60.0" ctrlrange="0.000000 0.300000" forcerange="-100.0 100.0"/>
-  <velocity name="act_Revolute 3" joint="Revolute 3" kv="15.0" ctrlrange="-2 2" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 4" joint="Revolute 4" kp="60.0" ctrlrange="-1.919862 0.000000" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 5" joint="Revolute 5" kp="60.0" ctrlrange="-3.141593 0.785398" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 7" joint="Revolute 7" kp="60.0" ctrlrange="0.000000 3.141593" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 9" joint="Revolute 9" kp="60.0" ctrlrange="-1.570796 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 11" joint="Revolute 11" kp="60.0" ctrlrange="-1.745329 1.745329" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 26" joint="Revolute 26" kp="60.0" ctrlrange="-1.570796 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 43" joint="Revolute 43" kp="60.0" ctrlrange="-0.261799 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 49" joint="Revolute 49" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 53" joint="Revolute 53" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 58" joint="Revolute 58" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 50" joint="Revolute 50" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 54" joint="Revolute 54" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 59" joint="Revolute 59" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 51" joint="Revolute 51" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 55" joint="Revolute 55" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 60" joint="Revolute 60" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 52" joint="Revolute 52" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 56" joint="Revolute 56" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 61" joint="Revolute 61" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 48" joint="Revolute 48" kp="3.0" ctrlrange="-0.174533 1.221730" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 57" joint="Revolute 57" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 62" joint="Revolute 62" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 6" joint="Revolute 6" kp="60.0" ctrlrange="-0.785398 3.141593" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 8" joint="Revolute 8" kp="60.0" ctrlrange="-3.141593 0.000000" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 10" joint="Revolute 10" kp="60.0" ctrlrange="-1.570796 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 12" joint="Revolute 12" kp="60.0" ctrlrange="-1.745329 1.745329" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 27" joint="Revolute 27" kp="60.0" ctrlrange="-1.570796 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 64" joint="Revolute 64" kp="60.0" ctrlrange="-0.261799 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 70" joint="Revolute 70" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 74" joint="Revolute 74" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 79" joint="Revolute 79" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 71" joint="Revolute 71" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 75" joint="Revolute 75" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 80" joint="Revolute 80" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 72" joint="Revolute 72" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 76" joint="Revolute 76" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 81" joint="Revolute 81" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 73" joint="Revolute 73" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 77" joint="Revolute 77" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 82" joint="Revolute 82" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 69" joint="Revolute 69" kp="3.0" ctrlrange="-0.174533 1.221730" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 78" joint="Revolute 78" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 83" joint="Revolute 83" kp="3.0" ctrlrange="0.000000 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 24" joint="Revolute 24" kp="60.0" ctrlrange="-1.570796 1.570796" forcerange="-100.0 100.0"/>
-  <position name="act_Revolute 25" joint="Revolute 25" kp="60.0" ctrlrange="-1.570796 1.221730" forcerange="-100.0 100.0"/>
+  <position name="act_Slider 2" joint="Slider 2" kp="60.0" kv="55.0" ctrlrange="0.000000 0.300000" forcerange="-100.0 100.0"/>
+  <velocity name="act_Revolute 3" joint="Revolute 3" kv="15.0" ctrlrange="-2 2" forcerange="-45.0 45.0"/>
+  <position name="act_Revolute 4" joint="Revolute 4" kp="90.0" kv="70.0" ctrlrange="-1.919862 0.000000" forcerange="-45.0 45.0"/>
+  <position name="act_Revolute 5" joint="Revolute 5" kp="60.0" kv="45.0" ctrlrange="-3.141593 0.785398" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 7" joint="Revolute 7" kp="60.0" kv="45.0" ctrlrange="0.000000 3.141593" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 9" joint="Revolute 9" kp="60.0" kv="45.0" ctrlrange="-1.570796 1.570796" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 11" joint="Revolute 11" kp="60.0" kv="45.0" ctrlrange="-1.745329 1.745329" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 26" joint="Revolute 26" kp="15.0" kv="12.0" ctrlrange="-1.570796 1.570796" forcerange="-4.0 4.0"/>
+  <position name="act_Revolute 43" joint="Revolute 43" kp="15.0" kv="12.0" ctrlrange="-0.261799 1.570796" forcerange="-4.0 4.0"/>
+  <position name="act_Revolute 49" joint="Revolute 49" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 53" joint="Revolute 53" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 58" joint="Revolute 58" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 50" joint="Revolute 50" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 54" joint="Revolute 54" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 59" joint="Revolute 59" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 51" joint="Revolute 51" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 55" joint="Revolute 55" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 60" joint="Revolute 60" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 52" joint="Revolute 52" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 56" joint="Revolute 56" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 61" joint="Revolute 61" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 48" joint="Revolute 48" kp="3.0" kv="2.0" ctrlrange="-0.174533 1.221730" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 57" joint="Revolute 57" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 62" joint="Revolute 62" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 6" joint="Revolute 6" kp="60.0" kv="45.0" ctrlrange="-0.785398 3.141593" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 8" joint="Revolute 8" kp="60.0" kv="45.0" ctrlrange="-3.141593 0.000000" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 10" joint="Revolute 10" kp="60.0" kv="45.0" ctrlrange="-1.570796 1.570796" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 12" joint="Revolute 12" kp="60.0" kv="45.0" ctrlrange="-1.745329 1.745329" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 27" joint="Revolute 27" kp="15.0" kv="12.0" ctrlrange="-1.570796 1.570796" forcerange="-4.0 4.0"/>
+  <position name="act_Revolute 64" joint="Revolute 64" kp="15.0" kv="12.0" ctrlrange="-0.261799 1.570796" forcerange="-4.0 4.0"/>
+  <position name="act_Revolute 70" joint="Revolute 70" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 74" joint="Revolute 74" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 79" joint="Revolute 79" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 71" joint="Revolute 71" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 75" joint="Revolute 75" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 80" joint="Revolute 80" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 72" joint="Revolute 72" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 76" joint="Revolute 76" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 81" joint="Revolute 81" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 73" joint="Revolute 73" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 77" joint="Revolute 77" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 82" joint="Revolute 82" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 69" joint="Revolute 69" kp="3.0" kv="2.0" ctrlrange="-0.174533 1.221730" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 78" joint="Revolute 78" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 83" joint="Revolute 83" kp="3.0" kv="2.0" ctrlrange="0.000000 1.570796" forcerange="-3.0 3.0"/>
+  <position name="act_Revolute 24" joint="Revolute 24" kp="60.0" kv="45.0" ctrlrange="-1.570796 1.570796" forcerange="-15.0 15.0"/>
+  <position name="act_Revolute 25" joint="Revolute 25" kp="60.0" kv="45.0" ctrlrange="-1.570796 1.221730" forcerange="-15.0 15.0"/>
   <velocity name="act_Revolute 32" joint="Revolute 32" kv="4.0" ctrlrange="-11.823 11.823" forcerange="-15.0 15.0"/>
   <velocity name="act_Revolute 33" joint="Revolute 33" kv="4.0" ctrlrange="-11.823 11.823" forcerange="-15.0 15.0"/>
   <velocity name="act_base_vx" joint="virtual_base_x" kv="60.0" ctrlrange="-1.0 1.0" forcerange="-150.0 150.0"/>
   <velocity name="act_base_vy" joint="virtual_base_y" kv="60.0" ctrlrange="-1.0 1.0" forcerange="-150.0 150.0"/>
   <velocity name="act_base_yaw" joint="virtual_base_yaw" kv="25.0" ctrlrange="-1.5 1.5" forcerange="-60.0 60.0"/>
 </actuator>
+<equality>
+  <weld name="grasp_weld" body1="pickup_object" body2="finger_tip_1" relpose="-0.115663 -0.146438 0.432052 0.243467 0.285470 -0.516900 -0.769445" active="false"/>
+</equality>
 </mujoco>

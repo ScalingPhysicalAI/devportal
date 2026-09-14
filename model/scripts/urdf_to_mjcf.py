@@ -9,14 +9,19 @@ ros2control, gazebo) and $(find Humanoid_description) path substitution --
 no macros, properties, or conditionals -- so it's resolved here with plain
 string/XML processing instead of pulling in the `xacro` ROS package.
 
-IMPORTANT -- what this script does NOT know:
-    Every actuator gain, force range, and velocity limit added below is a
-    placeholder, not measured hardware data (see the ACTUATOR SPECS section).
-    The source CAD only carries geometry + kinematic limits; it has no motor
-    or sensor specs, and none exist anywhere else in this repo. This script
-    exists to produce a *bare, movable* dev/demo model -- do not use it (or
-    any dataset collected from it) for sim-to-real transfer until real motor
-    and tactile-sensor specs replace the placeholders marked below.
+IMPORTANT -- what this script does and does not know:
+    The source CAD/URDF's own <limit effort="100" velocity="100"/> on every
+    joint is a uniform placeholder, not real hardware data -- confirmed by
+    grepping the xacro itself, every single joint carries that exact same
+    round number. Torque *ceilings* (TORQUE_NM below) now come from the
+    user directly instead: 15 Nm for the general body servos, 45 Nm for the
+    waist, 4 Nm for the wrist, 3 Nm for the fingers (not separately specced,
+    treated as an estimate). The lift column's force and every joint's
+    *gain* (kp/kv -- how hard it corrects a given error, as opposed to the
+    torque ceiling on how hard it's allowed to push at all) are still this
+    script's own placeholder tuning, not measured servo response data --
+    there is still no tactile-sensor data anywhere. Don't use this (or any
+    dataset collected from it) for sim-to-real transfer until that's true.
 
 Usage:
     python3 model/scripts/urdf_to_mjcf.py
@@ -64,9 +69,11 @@ BASE_HEIGHT = 0.115
 # ---------------------------------------------------------------------------
 
 # Real fingertip/knuckle joints (30 total, both hands): small parts, gentle
-# placeholder gains. Everything else that got a real <limit> from CAD (arms,
-# waist tilt, neck, both wrist flexions, the torso lift slider) is treated as
-# a "body" joint with stronger placeholder gains.
+# gains. Everything else that got a real <limit> from CAD (arms, waist tilt,
+# neck, both wrist flexions, the torso lift slider) is treated as a "body"
+# joint -- split further below into WAIST_JOINTS/WRIST_JOINTS (their own,
+# higher/lower torque ceilings) and the rest (shoulders, elbows, upper-arm
+# roll, neck) at the general "servo" ceiling.
 FINGER_JOINTS = {
     "Revolute 48", "Revolute 49", "Revolute 50", "Revolute 51", "Revolute 52",
     "Revolute 53", "Revolute 54", "Revolute 55", "Revolute 56", "Revolute 57",
@@ -81,9 +88,17 @@ BODY_JOINTS = {
     "Revolute 24", "Revolute 25", "Revolute 26", "Revolute 27",
     "Revolute 43", "Revolute 64",
 }
+# Waist: Revolute 4 (torso pitch, its own parent link is literally named
+# "rotation_waist_joint_1") plus Revolute 3 below (torso yaw, the joint that
+# *creates* that same link) -- both get the 45 Nm waist rating.
+WAIST_JOINTS = {"Revolute 4"}
+# Wrist: the two joints between each forearm and its palm (axis A: Revolute
+# 26/27 off the actuator_dummy housings; axis B: Revolute 43/64, the last
+# joint before palm_right_1/palm_left_1 themselves) -- 4 Nm each, both arms.
+WRIST_JOINTS = {"Revolute 26", "Revolute 27", "Revolute 43", "Revolute 64"}
 # Continuous (unlimited) joints that still get a *velocity* actuator (spin-rate
 # control avoids angle-wrap issues a position actuator would have here).
-SPIN_JOINTS = {"Revolute 3"}  # torso/waist base rotation
+SPIN_JOINTS = {"Revolute 3"}  # torso/waist yaw -- also waist-rated, see above
 # The two drive wheels get their own velocity actuator purely for visual
 # spin (see DRIVE_WHEEL_RADIUS below) -- the base's actual motion comes from
 # the virtual planar joint, not from wheel/ground rolling friction, so
@@ -98,15 +113,43 @@ PASSIVE_SPIN_JOINTS = {"Revolute 36", "Revolute 37", "Revolute 38", "Revolute 39
 # placeholder gains below.
 DRIVE_WHEEL_RADIUS = 0.1015  # m
 
-# --- placeholder gains (see file-level warning) -----------------------------
+# --- torque ceilings: real, user-provided (see the file-level note) --------
+BODY_TORQUE_NM = 15.0  # general body servo: shoulders, elbows, upper-arm roll, neck
+WAIST_TORQUE_NM = 45.0
+WRIST_TORQUE_NM = 4.0
+FINGER_TORQUE_NM = 3.0  # not separately specced -- user-provided estimate
+
+# --- gains (kp/kv): still this script's own placeholder tuning -- how hard
+# each joint *corrects* a given error, capped by *_TORQUE_NM above on how
+# hard it's allowed to push at all. kv (added to every position actuator
+# below, not just relying on passive joint damping) is this file's stand-in
+# for a real servo's own closed-loop derivative gain -- without it, BODY_KP
+# alone against this model's real inertia is badly underdamped: confirmed
+# via headless step-response on the lift column specifically (the biggest
+# single moving mass on the robot, ~13.7kg by body_subtreemass) -- kv=0
+# visibly overshoots its commanded height and oscillates for a full second
+# before settling (exactly the "spring"/"moon gravity" bounce reported live);
+# kv roughly at or somewhat above the mass-spring critical-damping point
+# (2*sqrt(kp*mass) -- ~57 for the lift column's own kp/mass) removes the
+# overshoot entirely. The ratios below scale that same kv/kp relationship
+# to the other joint categories rather than re-deriving a critical-damping
+# mass for each one individually (their moving masses are all much smaller
+# and less consequential to get exactly right).
 BODY_KP = 60.0
+BODY_KV = 45.0
 BODY_DAMPING = 2.0
+WAIST_KP = 90.0  # stiffer than a general body servo -- 3x the torque budget (45 vs 15 Nm)
+WAIST_KV = 70.0
+WRIST_KP = 15.0  # softer -- much smaller torque budget (4 Nm) than a general body servo
+WRIST_KV = 12.0
 FINGER_KP = 3.0
+FINGER_KV = 2.0
 FINGER_DAMPING = 0.1
+LIFT_KP = 60.0
+LIFT_KV = 55.0  # tuned directly against this joint's own ~13.7kg lifted mass, see above
 SPIN_KV = 15.0
 SPIN_DAMPING = 1.0
 PASSIVE_DAMPING = 0.3
-PLACEHOLDER_FORCERANGE = 100.0  # matches the CAD export's own placeholder effort="100"
 
 # Virtual planar base: three zero-size, near-massless bodies inserted between
 # world and base_link, driven by their own velocity actuators. This stands in
@@ -131,6 +174,49 @@ DRIVE_WHEEL_CTRLRANGE = BASE_SLIDE_CTRLRANGE / DRIVE_WHEEL_RADIUS * 1.2  # rad/s
 ROOM_HALF_EXTENT = 6.0  # metres from center to each wall -> 12m x 12m room
 ROOM_WALL_HEIGHT = 2.6
 ROOM_WALL_THICKNESS = 0.08
+
+# Pick-and-place demo prop: a small free-floating box, spawned resting on
+# bench_n1's tabletop, for the frontend's scripted "Pick & Place" sequence to
+# grab (right hand) and carry over to bench_n2. Position is bench_n1's own
+# (cx, cy) from _build_room() plus a fixed offset toward the table's front
+# (room-facing) edge -- see MujocoViewer.tsx's PICK_PARK_POSE/PLACE_PARK_POSE
+# comments for how the frontend derives where the base must park to reach it
+# (the two are solved together: this file fixes the object's world position,
+# the frontend's arm IK -- solved offline, see its own comment -- fixes the
+# base's position/heading *relative to the object*, and moving the object
+# here without re-deriving that offset will make the reach miss).
+PICKUP_OBJECT_HALF_SIZE = 0.04  # 8cm cube
+PICKUP_OBJECT_POS = (-3.0, 4.85, 0.75 + PICKUP_OBJECT_HALF_SIZE)  # on bench_n1
+PICKUP_OBJECT_MASS = 0.15  # kg -- light enough for the placeholder finger actuators to hold
+PICKUP_OBJECT_RGBA = "0.95 0.45 0.1 1"
+
+# --- Pick & Place grasp geometry (right arm: palm_right_1's chain) ---------
+# Solved offline (numeric IK against this same model, minimizing the 4
+# main-finger fingertip centroid's distance to a target point -- the thumb
+# chain is excluded, see MujocoViewer.tsx's own comment on why) and copied
+# here as literals; MujocoViewer.tsx duplicates these same six joint names
+# and both qpos arrays (its own PICK_ARM_JOINTS/PICK_GRASP_QPOS/
+# PICK_PREGRASP_QPOS) to drive the scripted reach -- if either the object's
+# position above or these numbers change, both files need updating together
+# or the reach will miss and/or this weld's relpose (computed below, against
+# the *unmoved* object) will no longer match where the closed hand actually
+# is at the grasp pose.
+PICK_ARM_JOINTS = ["Revolute 5", "Revolute 7", "Revolute 9", "Revolute 11", "Revolute 26", "Revolute 43"]
+# Solved for a grip centroid 10cm *above* the tabletop (object center sits at
+# 4cm, object top face at 8cm) rather than level with the object -- closing
+# the fingers right at the object's own height left the lowest of the four
+# fingertips only ~1mm above the table (confirmed by headless sim: the arm's
+# placeholder position gain couldn't lift out of that, staying jammed against
+# the tabletop). The weld below is what actually holds the object regardless
+# of this offset -- see _build_grasp_weld()'s own comment.
+PICK_GRASP_QPOS = [-0.5666, 0.9047, -0.1661, -0.0047, -0.1486, 0.1785]
+# Base (world_x, world_y, yaw) the mobile base must be parked at for the
+# above arm pose to actually reach PICKUP_OBJECT_POS -- yaw=pi faces the
+# base toward +Y (north, where bench_n1/bench_n2 sit), and (x, y-0.75) is
+# this same right arm's reach solved with the base at the world origin
+# facing that same way (see the frontend's own PICK_PARK_POSE comment for
+# the full derivation of that 0.75m offset from the virtual base's geometry).
+PICK_PARK_POSE = (PICKUP_OBJECT_POS[0], PICKUP_OBJECT_POS[1] - 0.75, np.pi)
 
 
 def resolve_urdf() -> str:
@@ -291,8 +377,9 @@ def _inject_joint_damping(mjcf_text: str, damping_by_name: dict[str, float]) -> 
 
 
 def _build_actuators(model: "mujoco.MjModel") -> str:
-    """One placeholder actuator per controllable joint -- see the file-level
-    warning: none of these gains are real motor specs."""
+    """One actuator per controllable joint, torque-capped per *_TORQUE_NM
+    (see that section's own comment for which numbers are real vs. this
+    script's own placeholder tuning)."""
     lines = ["<actuator>"]
     seen = set()
     for j in range(model.njnt):
@@ -303,17 +390,37 @@ def _build_actuators(model: "mujoco.MjModel") -> str:
         jtype = model.jnt_type[j]
 
         if name in FINGER_JOINTS or name in BODY_JOINTS:
+            # Priority matters: WAIST_JOINTS/WRIST_JOINTS/"Slider 2" are all
+            # subsets of BODY_JOINTS with their own torque/gain, checked
+            # before the generic BODY_JOINTS fallback.
+            if name in FINGER_JOINTS:
+                kp, kv, torque = FINGER_KP, FINGER_KV, FINGER_TORQUE_NM
+            elif name in WAIST_JOINTS:
+                kp, kv, torque = WAIST_KP, WAIST_KV, WAIST_TORQUE_NM
+            elif name in WRIST_JOINTS:
+                kp, kv, torque = WRIST_KP, WRIST_KV, WRIST_TORQUE_NM
+            elif name == "Slider 2":
+                kp, kv, torque = LIFT_KP, LIFT_KV, None  # not a rotary Nm rating -- see below
+            else:
+                kp, kv, torque = BODY_KP, BODY_KV, BODY_TORQUE_NM
             lo, hi = model.jnt_range[j]
+            # Slider 2 is a linear (prismatic) joint -- its own force budget
+            # isn't part of the user's Nm spec (that's all rotary servos).
+            # Left at the same placeholder 100N the rest of this script's
+            # gains started from; call this out explicitly rather than
+            # silently reusing a number that looks like it came from the
+            # same real spec as the torque ceilings around it.
+            forcerange = 100.0 if torque is None else torque
             lines.append(
-                f'  <position name="act_{name}" joint="{name}" '
-                f'kp="{FINGER_KP if name in FINGER_JOINTS else BODY_KP}" '
+                f'  <position name="act_{name}" joint="{name}" kp="{kp}" kv="{kv}" '
                 f'ctrlrange="{lo:.6f} {hi:.6f}" '
-                f'forcerange="-{PLACEHOLDER_FORCERANGE} {PLACEHOLDER_FORCERANGE}"/>'
+                f'forcerange="-{forcerange} {forcerange}"/>'
             )
         elif name in SPIN_JOINTS:
+            # Torso yaw -- also waist-rated (see WAIST_JOINTS' own comment).
             lines.append(
                 f'  <velocity name="act_{name}" joint="{name}" kv="{SPIN_KV}" '
-                f'ctrlrange="-2 2" forcerange="-{PLACEHOLDER_FORCERANGE} {PLACEHOLDER_FORCERANGE}"/>'
+                f'ctrlrange="-2 2" forcerange="-{WAIST_TORQUE_NM} {WAIST_TORQUE_NM}"/>'
             )
         elif name in DRIVE_WHEEL_JOINTS:
             # Cosmetic spin only, sized off the wheel's own measured radius --
@@ -411,6 +518,130 @@ def _crate(name: str, cx: float, cy: float, half: float = 0.22, rgba: str = _CRA
     return [_static_box(name, (cx, cy, half), (half, half, half), rgba)]
 
 
+def _build_pickup_object() -> str:
+    """A small free-floating box for the Pick & Place demo. contype=8 (a bit
+    of its own) / conaffinity=5 (bits 1+4) makes it collide with the
+    tabletop/walls (bit 1) and, since it isn't part of the robot, the
+    floor's own isolated bit (4, see the floor geom below) so a
+    dropped/missed grasp lands on the floor instead of falling through it
+    forever -- but deliberately *not* with the robot itself (contype 2,
+    conaffinity 1): the frontend's scripted Pick & Place sequence carries
+    this object welded to palm_right_1 (see _build_grasp_weld()) rather than
+    through finger contact, and letting it also collide with the robot's own
+    body was confirmed live to fail mid-carry -- as the arm swings the held
+    object through its reach trajectory, it clips some other robot body
+    (shoulder/torso) and the resulting contact impulse overpowers the weld,
+    dropping the object. Finger/object contact was never load-bearing here
+    anyway (the thumb chain lands ~0.5m from the other four fingertips
+    regardless of joint values, so the fingers that do converge on the
+    object approach from only one side with nothing to press it against);
+    removing robot collision entirely just makes that explicit and stops it
+    from actively breaking the carry, at the cost of the fingers not
+    visually stopping right at the object's surface."""
+    x, y, z = PICKUP_OBJECT_POS
+    s = PICKUP_OBJECT_HALF_SIZE
+    return (
+        f'  <body name="pickup_object" pos="{x} {y} {z}">\n'
+        f'    <freejoint name="pickup_object_free"/>\n'
+        f'    <inertial pos="0 0 0" mass="{PICKUP_OBJECT_MASS}" diaginertia="0.0001 0.0001 0.0001"/>\n'
+        f'    <geom name="pickup_object_geom" type="box" size="{s} {s} {s}" rgba="{PICKUP_OBJECT_RGBA}" '
+        f'contype="8" conaffinity="5" friction="1.2 0.01 0.0002"/>\n'
+        f"  </body>"
+    )
+
+
+def _quat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    w1, x1, y1, z1 = a
+    w2, x2, y2, z2 = b
+    return np.array(
+        [
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        ]
+    )
+
+
+
+# Which body the grasp weld anchors to. NOT palm_right_1, despite that
+# reading as the obvious choice -- palm_right_1's own body origin sits
+# ~1.09m from where the closed hand actually is (the same "CAD body origin
+# far from its own mesh" quirk documented elsewhere in this file for
+# wheels/face_cover/etc, just much worse here), so a weld anchored there
+# uses that 1.09m gap as a lever arm: confirmed by headless sim that any
+# small residual arm-tracking error (a few thousandths of a radian, well
+# within what BODY_KP's placeholder gain leaves under load while driving)
+# gets amplified through that lever arm into the object visibly lagging
+# behind or flying off during the carry, even though the weld itself never
+# breaks (body1-body2 distance stays exactly constant throughout -- it's
+# *where* it's anchored that's wrong, not the constraint). finger_tip_1 (one
+# of the four fingers that actually converge on the object, see this
+# function's own docstring) sits within ~5cm of the object at the grasp
+# pose instead -- a >20x smaller lever arm -- confirmed via headless sim to
+# make the same residual tracking error imperceptible.
+GRASP_WELD_ANCHOR_BODY = "finger_tip_1"
+
+
+def _build_grasp_weld(model: "mujoco.MjModel") -> str:
+    """A weld equality constraint between the pickup object and
+    GRASP_WELD_ANCHOR_BODY, created inactive -- the frontend flips
+    data.eq_active on only once the scripted Pick & Place sequence has
+    actually closed the fingers at the grasp pose, and back off on release.
+
+    This exists because this CAD hand can't reliably hold the object through
+    finger/object contact friction alone (confirmed by headless simulation:
+    the thumb chain lands ~0.5m from the other four fingertips regardless of
+    joint values -- effectively non-opposing -- so the four fingers that do
+    converge on the object approach it from only one side, with nothing to
+    press it against; closing them sweeps past the object rather than
+    caging it). The weld is the load-bearing part of "holding" the object;
+    the finger-closing animation happening alongside it is real (the same
+    actuators, moved through their full range) but is not itself what keeps
+    the object in the hand. See the FINGER_JOINTS-related note in this
+    file's own outstanding-hardware list.
+
+    relpose is computed here, once, against the *unmoved* object at
+    PICKUP_OBJECT_POS with the arm at PICK_GRASP_QPOS and the base at
+    PICK_PARK_POSE -- i.e. baked in as a static offset for this exact
+    scripted approach, not a general grasp solver. Moving the object or
+    changing either pose array without recomputing this would weld the
+    object into empty space next to the hand instead of in it.
+    """
+    d = mujoco.MjData(model)
+
+    def jaddr(name: str) -> int:
+        return model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)]
+
+    d.qpos[jaddr("virtual_base_x")] = PICK_PARK_POSE[0]
+    d.qpos[jaddr("virtual_base_y")] = PICK_PARK_POSE[1]
+    d.qpos[jaddr("virtual_base_yaw")] = PICK_PARK_POSE[2]
+    for name, val in zip(PICK_ARM_JOINTS, PICK_GRASP_QPOS):
+        d.qpos[jaddr(name)] = val
+    # pickup_object's free joint is left at its qpos0 default (on the table)
+    # -- that *is* the grasp-moment position/orientation we want to weld.
+    mujoco.mj_forward(model, d)
+
+    anchor = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, GRASP_WELD_ANCHOR_BODY)
+    obj = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "pickup_object")
+    anchor_mat = d.xmat[anchor].reshape(3, 3)
+    rel_pos = anchor_mat.T @ (d.xpos[obj] - d.xpos[anchor])
+
+    def quat_conj(q: np.ndarray) -> np.ndarray:
+        return np.array([q[0], -q[1], -q[2], -q[3]])
+
+    rel_quat = _quat_mul(quat_conj(d.xquat[anchor]), d.xquat[obj])
+
+    pos_str = " ".join(f"{v:.6f}" for v in rel_pos)
+    quat_str = " ".join(f"{v:.6f}" for v in rel_quat)
+    return (
+        "<equality>\n"
+        f'  <weld name="grasp_weld" body1="pickup_object" body2="{GRASP_WELD_ANCHOR_BODY}" '
+        f'relpose="{pos_str} {quat_str}" active="false"/>\n'
+        "</equality>"
+    )
+
+
 def _build_room() -> str:
     """A rectangular lab room (floor + 4 walls) dressed with simple
     placeholder furniture -- workbenches along two walls, a shelving unit,
@@ -490,6 +721,198 @@ def recenter_wheel_geoms(model: "mujoco.MjModel") -> None:
         print(f"{body_name}: moved joint anchor {offset * 100:.1f}cm to the disc's own center (disc position unchanged)")
 
 
+# The rest of the actuated skeleton -- torso/waist, both shoulders, both
+# elbows, both wrists, neck -- has the *same* root problem as the wheels
+# above, just far worse: every one of these joints' child body sits with its
+# own origin (jnt_pos defaults to that origin, i.e. 0,0,0 in the body's own
+# frame -- confirmed: xanchor for each of these exactly equals its body's
+# own xpos) up to 1.3m from where its mesh actually is, discovered chasing a
+# live report that gestures made joints look "detached" -- wave's shoulder/
+# elbow/wrist rotations (a modest 15-25deg each) were visibly swinging each
+# mesh through a wide arc, worse at each joint further down the chain,
+# because each one's own mesh sits at the *end* of an effectively 1m+ lever
+# arm from its own rotation axis. Confirmed this is the same "origin far
+# from its own mesh" export quirk as the wheels/face_cover/palm (documented
+# elsewhere in this file) -- not a one-off on a few "special" bodies as
+# earlier comments here assumed, but the norm for this entire CAD export.
+#
+# Unlike the wheels (a symmetric disc, so "the disc's own center" is
+# unambiguously the right pivot), an elongated arm segment's mesh has no
+# single obvious center to recenter onto -- the actual mechanical hinge is
+# at the *seam* where it meets its neighbor, not at its own mesh's middle.
+# Measured directly instead: for every (parent, child) pair below, the
+# nearest point between the parent's mesh and the child's mesh, in world
+# space at rest, comes out to 0.1-7mm apart -- i.e. the meshes already meet
+# correctly at their true CAD-assembled seam. That seam point, converted
+# into the child body's local frame, is the correct jnt_pos.
+ARM_CHAIN_JOINTS: list[tuple[str, str, str]] = [
+    ("Revolute 3", "wheelbase_lift_1", "rotation_waist_joint_1"),
+    ("Revolute 4", "rotation_waist_joint_1", "chest_enclosure_2_1"),
+    ("Revolute 5", "chest_enclosure_2_1", "rotation_shoulder_joint_1"),
+    ("Revolute 6", "chest_enclosure_2_1", "rotation_shoulder_joint_2"),
+    ("Revolute 7", "rotation_shoulder_joint_1", "rotation_arm_joint_1"),
+    ("Revolute 8", "rotation_shoulder_joint_2", "rotation_arm_joint_2"),
+    ("Revolute 9", "rotation_arm_joint_1", "arm_joint_1"),
+    ("Revolute 10", "rotation_arm_joint_2", "arm_joint_2"),
+    ("Revolute 11", "arm_joint_1", "forearm_joint_1"),
+    ("Revolute 12", "arm_joint_2", "forearm_joint_2"),
+    ("Revolute 26", "forearm_joint_1", "servo_spacer_hand_1"),
+    ("Revolute 27", "forearm_joint_2", "servo_spacer_hand_2"),
+    ("Revolute 43", "servo_spacer_hand_1", "palm_right_1"),
+    ("Revolute 64", "servo_spacer_hand_2", "palm_left_1"),
+    ("Revolute 24", "chest_enclosure_2_1", "neck_joint_3dp_1"),
+    ("Revolute 25", "neck_joint_3dp_1", "face_cover_3_1"),
+]
+# A nearest-mesh-point match this far apart means the two bodies' meshes
+# don't actually touch at rest -- ARM_CHAIN_JOINTS would be recentering onto
+# the wrong point, not a real seam -- so treat it as a hard error rather
+# than silently accepting a bad anchor.
+_MAX_PLAUSIBLE_SEAM_GAP_M = 0.02
+
+
+def _mesh_world_verts(model: "mujoco.MjModel", data: "mujoco.MjData", body_id: int) -> np.ndarray:
+    """All mesh vertices belonging to body_id's geoms, transformed to world
+    space at data's current qpos."""
+    chunks = []
+    for g in range(model.ngeom):
+        if model.geom_bodyid[g] != body_id:
+            continue
+        mesh_id = model.geom_dataid[g]
+        if mesh_id < 0:
+            continue
+        v0 = model.mesh_vertadr[mesh_id]
+        n = model.mesh_vertnum[mesh_id]
+        local = model.mesh_vert[v0 : v0 + n].reshape(-1, 3)
+        rot = data.geom_xmat[g].reshape(3, 3)
+        chunks.append(local @ rot.T + data.geom_xpos[g])
+    if not chunks:
+        raise ValueError(f"body {body_id} has no mesh geoms to recenter a joint onto")
+    return np.concatenate(chunks, axis=0)
+
+
+def _nearest_point_pair(a: np.ndarray, b: np.ndarray, sample: int = 2500) -> tuple[float, np.ndarray, np.ndarray]:
+    """Closest pair of points between two point clouds (brute force, chunked,
+    with random subsampling for speed on the larger meshes -- this only
+    needs to find *a* point within the seam's own few-mm scale, not the
+    mathematically exact nearest point)."""
+    rng = np.random.default_rng(0)
+    if len(a) > sample:
+        a = a[rng.choice(len(a), sample, replace=False)]
+    if len(b) > sample:
+        b = b[rng.choice(len(b), sample, replace=False)]
+    best_dist, best_a, best_b = float("inf"), a[0], b[0]
+    for i in range(0, len(a), 200):
+        chunk = a[i : i + 200]
+        d2 = np.sum((chunk[:, None, :] - b[None, :, :]) ** 2, axis=2)
+        ia, ib = np.unravel_index(np.argmin(d2), d2.shape)
+        dist = float(np.sqrt(d2[ia, ib]))
+        if dist < best_dist:
+            best_dist, best_a, best_b = dist, chunk[ia], b[ib]
+    return best_dist, best_a, best_b
+
+
+def recenter_arm_joint_anchors(model: "mujoco.MjModel") -> None:
+    """Move each ARM_CHAIN_JOINTS joint's anchor (jnt_pos) from wherever the
+    CAD export left it (its child body's own, unrelated-to-geometry origin)
+    to the actual seam between that joint's parent and child meshes -- see
+    the module comment above. In place on the already-compiled model, same
+    timing as recenter_wheel_geoms()."""
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    for joint_name, parent_body, child_body in ARM_CHAIN_JOINTS:
+        j = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, joint_name)
+        if j < 0:
+            raise ValueError(f"expected joint '{joint_name}' not found in model")
+        p_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, parent_body)
+        c_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, child_body)
+        if p_id < 0 or c_id < 0:
+            raise ValueError(f"expected bodies '{parent_body}'/'{child_body}' for joint '{joint_name}'")
+        gap, _, seam_world = _nearest_point_pair(
+            _mesh_world_verts(model, data, p_id), _mesh_world_verts(model, data, c_id)
+        )
+        if gap > _MAX_PLAUSIBLE_SEAM_GAP_M:
+            raise ValueError(
+                f"joint '{joint_name}': nearest point between '{parent_body}' and '{child_body}' "
+                f"meshes is {gap * 100:.1f}cm apart -- too far to be their real seam, ARM_CHAIN_JOINTS "
+                "is probably wrong for this pair"
+            )
+        child_mat = data.xmat[c_id].reshape(3, 3)
+        seam_local = child_mat.T @ (seam_world - data.xpos[c_id])
+        offset = np.linalg.norm(seam_local - model.jnt_pos[j])
+        model.jnt_pos[j] = seam_local
+        print(f"{joint_name} ({parent_body} -> {child_body}): moved joint anchor {offset * 100:.1f}cm to the meshes' own seam")
+
+
+# The Slider 2 lift column is a genuinely different problem from
+# ARM_CHAIN_JOINTS above -- it's a *slide*, so there's no wrong-pivot/lever-
+# arm effect (translating a rigid body by a fixed amount looks the same
+# regardless of where its own local origin is; that failure mode is
+# rotation-specific). Reported live instead: raising it opens a visible gap
+# between wheelbase_lift_1's own moving mesh and base_link's fixed housing
+# below it -- confirmed by measuring both meshes' own world bounding boxes:
+# base_link's fixed housing tops out well below where wheelbase_lift_1's
+# mesh sits even at the *lowest* end of Slider 2's travel, let alone at
+# full extension. This isn't a jnt_pos bug -- moving the joint anchor can't
+# close a gap between two independently-shaped meshes -- so the CAD simply
+# has no housing tall enough to visually contain the column's own travel
+# range. Real telescoping columns solve this with an outer tube long enough
+# to contain the inner one's full stroke; this adds exactly that as a
+# static box geom on base_link (so it doesn't move, only wheelbase_lift_1
+# does), sized/positioned from the two meshes' own measured geometry so it
+# always spans from the fixed housing's own top up through the moving
+# box's lowest reach at full extension, with a margin.
+_LIFT_SLEEVE_MARGIN_M = 0.02
+_LIFT_SLEEVE_PAD_M = 0.008
+_LIFT_SLEEVE_RGBA = "0.08 0.08 0.08 1"
+
+
+def _build_lift_sleeve(model: "mujoco.MjModel") -> str:
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+
+    def mesh_world_aabb(body_name: str) -> tuple[np.ndarray, np.ndarray]:
+        verts = _mesh_world_verts(model, data, mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, body_name))
+        return verts.min(axis=0), verts.max(axis=0)
+
+    base_lo, base_hi = mesh_world_aabb("base_link")
+    lift_lo, lift_hi = mesh_world_aabb("wheelbase_lift_1")
+
+    j = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "Slider 2")
+    _, hi_range = model.jnt_range[j]
+
+    world_z_lo = base_hi[2]
+    world_z_hi = lift_lo[2] + hi_range + _LIFT_SLEEVE_MARGIN_M
+    world_pos = np.array(
+        [(lift_lo[0] + lift_hi[0]) / 2, (lift_lo[1] + lift_hi[1]) / 2, (world_z_lo + world_z_hi) / 2]
+    )
+    world_halfsize = np.array(
+        [
+            (lift_hi[0] - lift_lo[0]) / 2 + _LIFT_SLEEVE_PAD_M,
+            (lift_hi[1] - lift_lo[1]) / 2 + _LIFT_SLEEVE_PAD_M,
+            (world_z_hi - world_z_lo) / 2,
+        ]
+    )
+
+    base_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, "base_link")
+    base_mat = data.xmat[base_id].reshape(3, 3)
+    local_pos = base_mat.T @ (world_pos - data.xpos[base_id])
+    # A box's half-extents live along the *geom's own* local axes; since
+    # base_link's rotation here is a pure axis permutation/flip (confirmed:
+    # its xmat entries are all exactly 0/+-1, the up-axis fix from
+    # resolve_urdf()), taking the absolute value of the same rotation
+    # applied to the world half-size vector maps each world-axis extent onto
+    # the correct local axis exactly, with no shear.
+    local_halfsize = np.abs(base_mat.T) @ world_halfsize
+
+    pos_str = " ".join(f"{v:.6f}" for v in local_pos)
+    size_str = " ".join(f"{v:.6f}" for v in local_halfsize)
+    print(
+        f"lift sleeve: covers world z=[{world_z_lo:.3f}, {world_z_hi:.3f}] "
+        f"(base housing top -> lift column's own lowest reach at full extension + margin)"
+    )
+    return f'<geom name="lift_sleeve" type="box" pos="{pos_str}" size="{size_str}" rgba="{_LIFT_SLEEVE_RGBA}" contype="0" conaffinity="0"/>'
+
+
 def disable_wheel_floor_collision(mjcf_text: str) -> str:
     """Zero out contype/conaffinity on every wheel disc geom (drive wheels
     and casters alike). Text-level, applied to the already-saved MJCF --
@@ -532,6 +955,49 @@ def disable_wheel_floor_collision(mjcf_text: str) -> str:
     return fixed
 
 
+# The shoulder/arm/hand servo-housing "brackets" (mesh names below). Each one
+# is rigidly fixed to only *one* side of the joint it visually sits across
+# (a modeling artifact of this CAD export -- the actual motor housing spans
+# both the fixed and rotating halves of a real joint, but the export only
+# carries it as a single rigid mesh glued to whichever body happened to own
+# it), so once that joint rotates by a real amount -- exactly what every
+# scripted gesture and Pick & Place now do -- the bracket visibly separates
+# from the part it's supposed to sit flush against. Confirmed live in-browser
+# (waving, reaching): every one of these joints shows the gap, not just one.
+# An earlier revision of this script hid these meshes for exactly this
+# reason, then un-hid them at the user's request to keep them visible as
+# landmarks; re-hiding now that real, larger-range joint motion (reach/lower/
+# wave) makes the separation clearly read as a broken/detached part rather
+# than a cosmetic gap.
+DUMMY_ACTUATOR_MESHES = [f"actuator_dummy_{i}" for i in range(1, 11)] + ["actuator_stepper_dummy_1"]
+
+
+def hide_dummy_actuator_meshes(mjcf_text: str) -> str:
+    """Push every geom referencing a DUMMY_ACTUATOR_MESHES mesh into render
+    group 3 -- MujocoViewer.tsx's own scene builder already skips any geom
+    with geom_group >= 3 (`if (!(model.geom_group[g] < 3)) continue;`,
+    mirroring MuJoCo's own `simulate` viewer convention), so this only stops
+    them from being *drawn*. group is a pure visualization tag in MuJoCo,
+    read by nothing else -- collision (contype/conaffinity, unaffected by
+    this) and every dynamics computation are untouched, so this cannot
+    change how the robot moves or collides, only how it's drawn. Text-level
+    for the same reason disable_wheel_floor_collision() is: mj_saveLastXML
+    doesn't round-trip in-memory geom_group edits made on the compiled
+    model, only geom_pos/jnt_pos-style fields do (confirmed the same way)."""
+    mesh_names = tuple(DUMMY_ACTUATOR_MESHES)
+
+    def _hide(match: "re.Match[str]") -> str:
+        tag = match.group(0)
+        if not re.search(rf'mesh="({"|".join(mesh_names)})"', tag):
+            return tag
+        tag = re.sub(r'\s*group="[^"]*"', "", tag)
+        return tag[:-2] + ' group="3"/>'
+
+    fixed = re.sub(r"<geom [^>]*/>", _hide, mjcf_text)
+    print(f"hid {len(mesh_names)} dummy actuator-housing meshes (render group 3, collision unchanged)")
+    return fixed
+
+
 def main() -> None:
     resolved_urdf = sanitize_inertias(resolve_urdf())
     RESOLVED_URDF_PATH.write_text(resolved_urdf)
@@ -541,6 +1007,8 @@ def main() -> None:
     print(f"loaded MJCF model: {model.nbody} bodies, {model.njnt} joints, {model.nq} qpos, {model.ngeom} geoms")
 
     recenter_wheel_geoms(model)
+    recenter_arm_joint_anchors(model)
+    lift_sleeve_xml = _build_lift_sleeve(model)
     actuator_xml = _build_actuators(model)
 
     OUTPUT_DIR.mkdir(exist_ok=True)
@@ -558,14 +1026,11 @@ def main() -> None:
             shutil.copy2(stl, OUTPUT_MESHES_DIR / stl.name)
     mjcf_text = mjcf_text.replace('file="../meshes/', 'file="meshes/')
 
-    # NOTE: an earlier version of this script hid the "*_dummy_*"
-    # servo/actuator-housing meshes (the shoulder/arm/hand motor-housing
-    # brackets) because each one is rigidly fixed to only *one* side of its
-    # joint and visibly separates from the other side once that joint
-    # rotates by a real amount. Reverted at the user's request -- the
-    # brackets are wanted back as visible landmarks on the hands/shoulders
-    # for now; the joint-motion visual gap is a known, separate issue to
-    # revisit alongside the wave gesture rework.
+    # See DUMMY_ACTUATOR_MESHES/hide_dummy_actuator_meshes()'s own comment:
+    # these were hidden, then un-hidden at the user's request, and are now
+    # re-hidden at a later request once real joint motion made the
+    # single-sided-bracket gap read as broken rather than cosmetic.
+    mjcf_text = hide_dummy_actuator_meshes(mjcf_text)
     mjcf_text = disable_wheel_floor_collision(mjcf_text)
 
     # Floor + the lab room (walls + furniture) the mobile base can drive
@@ -595,9 +1060,10 @@ def main() -> None:
         1,
     )
 
-    # Per-joint damping (numerical stability; the position/velocity actuators
-    # above -- not this damping -- are what actually holds each joint's
-    # commanded pose against gravity).
+    # Per-joint *passive* damping -- small, uniform, numerical-stability-only
+    # (real per-joint response damping is each position actuator's own kv
+    # term now, see the gains section above; this is on top of that, not
+    # instead of it).
     damping_by_name = {name: BODY_DAMPING for name in BODY_JOINTS}
     damping_by_name.update({name: FINGER_DAMPING for name in FINGER_JOINTS})
     damping_by_name.update({name: SPIN_DAMPING for name in SPIN_JOINTS})
@@ -624,6 +1090,16 @@ def main() -> None:
     # compensation in their own low-level loop, so this is standing in for
     # that -- not a substitute for real gain tuning once real motor specs
     # exist.
+    # Integrator: implicitfast. RK4 was tried (it happened to paper over an
+    # earlier version of the Pick & Place grasp weld bug, see
+    # GRASP_WELD_ANCHOR_BODY's own comment for the actual bug and fix) and
+    # reverted -- RK4 broke the base's own velocity-actuated driving
+    # outright (confirmed: commanding act_base_vx under RK4 produces an
+    # immediate NaN and the base never moves), which is this simulator's
+    # most-used, most-tested feature. Not worth revisiting unless a future
+    # feature specifically needs it, and even then it'd have to be a
+    # per-phase switch (implicitfast while driving, something else while
+    # holding still), not a single global setting.
     mjcf_text = mjcf_text.replace(
         "<compiler",
         '<option integrator="implicitfast"/>\n'
@@ -637,7 +1113,34 @@ def main() -> None:
     # (unlike geom/joint) -- inject it onto every <body ...> tag directly.
     mjcf_text = re.sub(r"<body ", '<body gravcomp="1" ', mjcf_text)
 
+    # Added *after* the blanket gravcomp injection above, deliberately: this
+    # is a normal passive prop, not a robot link fighting a placeholder
+    # position-gain -- it should fall/rest under ordinary gravity, not float.
+    mjcf_text = mjcf_text.replace("</worldbody>", f"{_build_pickup_object()}\n</worldbody>", 1)
+
+    # Lift sleeve: a plain <geom>, added directly inside base_link's own
+    # <body> block (right after its own two mesh geoms, the last thing
+    # there before base_link's nested <body name="wheelbase_lift_1">) so it
+    # rides along with the base rigidly, contype/conaffinity=0 since it's
+    # purely a visual fill-in, not a real part -- see _build_lift_sleeve()'s
+    # own comment.
+    _base_link_last_geom = '<geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="base_link"/>'
+    if mjcf_text.count(_base_link_last_geom) != 1:
+        raise ValueError("expected exactly one base_link collision geom line to anchor the lift sleeve on")
+    mjcf_text = mjcf_text.replace(_base_link_last_geom, f"{_base_link_last_geom}\n          {lift_sleeve_xml}", 1)
+
     mjcf_text = mjcf_text.replace("</mujoco>", actuator_xml + "\n</mujoco>")
+    OUTPUT_MJCF_PATH.write_text(mjcf_text)
+
+    # _build_grasp_weld() needs a compiled model that actually has the
+    # pickup object in it (added as text above, so the in-memory `model`
+    # from earlier in this function doesn't have it) -- reload what was just
+    # written, purely to compute the weld's relpose, then append it and
+    # write again. Loaded via from_xml_path (not from_xml_string) so the
+    # "meshes/..." paths resolve relative to this file's own directory, same
+    # as every other load in this script.
+    staging_model = mujoco.MjModel.from_xml_path(str(OUTPUT_MJCF_PATH))
+    mjcf_text = mjcf_text.replace("</mujoco>", _build_grasp_weld(staging_model) + "\n</mujoco>")
     OUTPUT_MJCF_PATH.write_text(mjcf_text)
 
     # Verify the saved MJCF is loadable standalone before declaring success.
