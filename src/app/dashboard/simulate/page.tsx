@@ -6,7 +6,12 @@ import { MujocoViewer } from "@/components/simulation/MujocoViewer";
 // button or logo -- there's deliberately no in-page chrome here.
 export default function SimulatePage() {
   return (
-    <div className="h-full w-full bg-black">
+    // bg-[#f3efe4] matches MujocoViewer's own scene.background (its bright
+    // kitchen theme, see that file's comment) -- this is what shows through
+    // for an instant before the WebGL canvas paints, not a themed choice of
+    // its own. The rest of the dashboard (topbar, sidebar, other routes)
+    // keeps its existing dark theme unchanged.
+    <div className="h-full w-full bg-[#f3efe4]">
       <MujocoViewer interactive className="h-full w-full" />
     </div>
   );

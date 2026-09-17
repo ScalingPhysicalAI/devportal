@@ -26,7 +26,14 @@ export function DashboardChrome({ user, children }: { user: SafeUser; children: 
       {!fullBleed && <MobileTabs />}
       <div className="flex flex-1 min-h-0">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className={clsx("flex-1 min-h-0", fullBleed ? "" : "px-6 py-10 lg:px-10")}>{children}</main>
+        {/* min-w-0 alongside the existing min-h-0 -- a flex item's default
+            min-width is `auto`, not 0, so without it `main` was free to
+            inflate past the viewport to fit a wide child's *preferred*
+            width instead of constraining that child to the space actually
+            available (confirmed live: the simulator's new side guide panel
+            was being pushed off-screen this way, not a bug in that
+            component's own layout at all). */}
+        <main className={clsx("flex-1 min-h-0 min-w-0", fullBleed ? "" : "px-6 py-10 lg:px-10")}>{children}</main>
       </div>
     </div>
   );

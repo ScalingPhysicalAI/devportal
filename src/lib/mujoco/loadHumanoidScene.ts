@@ -72,11 +72,14 @@ export interface BuiltScene {
   lights: THREE.Light[];
 }
 
-// Canvas-drawn grid (black blocks, light-blue lines) for the ground plane --
+// Canvas-drawn grid (light tile, warm grout lines) for the ground plane --
 // the MJCF's own checker <texture> isn't sampled anywhere in this loader
 // (materials are read as flat rgba only), so the floor's look is entirely
-// up to this.
-const GRID_TILE_METERS = 0.2; // 20x20cm blocks, sized against the robot's real-world scale
+// up to this. Light tones to match the simulator's own bright kitchen theme
+// (see _build_room()'s own comment in urdf_to_mjcf.py) -- this used to be a
+// near-black grid with light-blue lines, matching the room's old dark lab
+// theme.
+const GRID_TILE_METERS = 0.4; // 40x40cm tiles, a plausible kitchen floor tile size
 let gridFloorTexture: THREE.CanvasTexture | null = null;
 function getGridFloorTexture(planeWidth: number, planeHeight: number): THREE.CanvasTexture {
   if (!gridFloorTexture) {
@@ -85,9 +88,9 @@ function getGridFloorTexture(planeWidth: number, planeHeight: number): THREE.Can
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#050608";
+    ctx.fillStyle = "#e9e4d8";
     ctx.fillRect(0, 0, size, size);
-    ctx.strokeStyle = "#4fb3e8";
+    ctx.strokeStyle = "#c7bfa8";
     ctx.lineWidth = 2;
     ctx.strokeRect(2, 2, size - 4, size - 4);
     gridFloorTexture = new THREE.CanvasTexture(canvas);

@@ -27,6 +27,7 @@ Usage:
     python3 model/scripts/urdf_to_mjcf.py
 """
 
+import json
 import pathlib
 import re
 import shutil
@@ -52,6 +53,14 @@ RESOLVED_URDF_PATH = DESCRIPTION_DIR / "urdf" / "Humanoid.resolved.urdf"
 OUTPUT_DIR = ROOT / "mjcf"
 OUTPUT_MESHES_DIR = OUTPUT_DIR / "meshes"
 OUTPUT_MJCF_PATH = OUTPUT_DIR / "humanoid.xml"
+
+# Purchased kitchen environment asset (see model/scripts/convert_kitchen_obj.py
+# for how model/kitchen/new+kitchen.obj became these per-part STLs + this
+# manifest -- run once, checked in like any other static build input, not
+# regenerated here).
+KITCHEN_DIR = ROOT / "kitchen"
+KITCHEN_MESHES_DIR = KITCHEN_DIR / "meshes"
+KITCHEN_MANIFEST_PATH = KITCHEN_DIR / "manifest.json"
 
 # Height (m) at which the robot's own local +Y axis (its CAD "up") sits above
 # the floor once rolled onto world +Z -- i.e. how far the lowest mesh vertex
@@ -165,28 +174,38 @@ DRIVE_WHEEL_KV = 4.0
 DRIVE_WHEEL_FORCE = 15.0
 DRIVE_WHEEL_CTRLRANGE = BASE_SLIDE_CTRLRANGE / DRIVE_WHEEL_RADIUS * 1.2  # rad/s, with headroom
 
-# Bare lab room: a floor (already added below) plus four walls forming a
-# rectangular room, dressed with simple placeholder furniture (workbenches,
-# a shelving unit, storage crates) so it reads as a lab rather than an empty
-# box -- and sized to leave a large open area in the middle to drive/walk
-# around in. All primitive geoms (no external mesh assets) -- see
-# _build_room().
-ROOM_HALF_EXTENT = 6.0  # metres from center to each wall -> 12m x 12m room
-ROOM_WALL_HEIGHT = 2.6
-ROOM_WALL_THICKNESS = 0.08
-
-# Pick-and-place demo prop: a small free-floating box, spawned resting on
-# bench_n1's tabletop, for the frontend's scripted "Pick & Place" sequence to
-# grab (right hand) and carry over to bench_n2. Position is bench_n1's own
-# (cx, cy) from _build_room() plus a fixed offset toward the table's front
-# (room-facing) edge -- see MujocoViewer.tsx's PICK_PARK_POSE/PLACE_PARK_POSE
-# comments for how the frontend derives where the base must park to reach it
+# Pick-and-place demo prop: a small free-floating box. Position/reach below
+# (PICKUP_OBJECT_POS/PICK_GRASP_QPOS/PICK_PARK_POSE) were solved against the
+# *previous* procedural room's own bench_n1 counter, which no longer exists
+# now that the room is the imported kitchen asset (see _build_room()'s own
+# comment) -- left as-is rather than deleted (the user's own call: replace
+# the room, not rip out the Pick & Place machinery), but the object now
+# spawns at a world position that may not land on any real counter surface
+# in the new kitchen. Re-solving this against the new layout is a separate,
+# not-yet-requested follow-up.
+# (Original comment, still accurate for how these two files' numbers relate
+# to each other:) Position is bench_n1's own (cx, cy) plus a fixed offset
+# toward the table's front (room-facing) edge -- see MujocoViewer.tsx's
+# PICK_PARK_POSE/PLACE_PARK_POSE comments for how the frontend derives where
+# the base must park to reach it
 # (the two are solved together: this file fixes the object's world position,
 # the frontend's arm IK -- solved offline, see its own comment -- fixes the
 # base's position/heading *relative to the object*, and moving the object
 # here without re-deriving that offset will make the reach miss).
 PICKUP_OBJECT_HALF_SIZE = 0.04  # 8cm cube
-PICKUP_OBJECT_POS = (-3.0, 4.85, 0.75 + PICKUP_OBJECT_HALF_SIZE)  # on bench_n1
+PICKUP_OBJECT_POS = (2.0, -1.0, 0.02 + PICKUP_OBJECT_HALF_SIZE)  # on the floor
+# ^ was (-3.0, 4.85, ...), sitting on "bench_n1" in the previous procedural
+# room -- that room no longer exists (see _build_room()'s own comment), and
+# that old position now lands 51cm inside the new kitchen's own wall/ceiling
+# shell mesh. Confirmed live: the resulting overlap made the object explode
+# outward on the very first physics step, hard enough to visibly deform the
+# robot's own joints on load (see _build_kitchen_import()'s own comment for
+# the actual mechanism). This new position is a plain, empty floor spot,
+# verified clear of every kitchen collision volume in
+# _build_kitchen_collision_proxy() -- not a counter surface (Pick & Place's
+# own reach/park pose below still target the old, no-longer-valid layout
+# and remain broken, per the user's own earlier call), just a safe place
+# for the object to rest without incident.
 PICKUP_OBJECT_MASS = 0.15  # kg -- light enough for the placeholder finger actuators to hold
 PICKUP_OBJECT_RGBA = "0.95 0.45 0.1 1"
 
@@ -462,62 +481,6 @@ def _build_actuators(model: "mujoco.MjModel") -> str:
     return "\n".join(lines)
 
 
-_WALL_RGBA = "0.55 0.57 0.6 1"
-_TABLETOP_RGBA = "0.78 0.76 0.68 1"
-_METAL_RGBA = "0.32 0.33 0.35 1"
-_CRATE_RGBAS = ["0.55 0.22 0.18 1", "0.18 0.32 0.5 1", "0.2 0.45 0.28 1"]
-
-
-def _static_box(name: str, pos: tuple, size: tuple, rgba: str) -> str:
-    return (
-        f'  <geom name="{name}" type="box" pos="{pos[0]:.3f} {pos[1]:.3f} {pos[2]:.3f}" '
-        f'size="{size[0]:.3f} {size[1]:.3f} {size[2]:.3f}" rgba="{rgba}" contype="1" conaffinity="1"/>'
-    )
-
-
-def _table(name: str, cx: float, cy: float, length: float = 1.4, depth: float = 0.7, height: float = 0.75) -> list:
-    """A workbench: one tabletop box on four leg boxes, axis-aligned."""
-    top_t = 0.04
-    leg_t = 0.04
-    geoms = [
-        _static_box(
-            f"{name}_top", (cx, cy, height - top_t / 2), (length / 2, depth / 2, top_t / 2), _TABLETOP_RGBA
-        )
-    ]
-    for i, (lx, ly) in enumerate(
-        [
-            (length / 2 - leg_t, depth / 2 - leg_t),
-            (length / 2 - leg_t, -(depth / 2 - leg_t)),
-            (-(length / 2 - leg_t), depth / 2 - leg_t),
-            (-(length / 2 - leg_t), -(depth / 2 - leg_t)),
-        ]
-    ):
-        geoms.append(
-            _static_box(
-                f"{name}_leg{i}", (cx + lx, cy + ly, (height - top_t) / 2), (leg_t / 2, leg_t / 2, (height - top_t) / 2), _METAL_RGBA
-            )
-        )
-    return geoms
-
-
-def _shelf_unit(name: str, cx: float, cy: float, width: float = 1.6, depth: float = 0.4, height: float = 1.8) -> list:
-    """A 3-shelf storage unit: two side panels + three horizontal shelves."""
-    panel_t = 0.03
-    geoms = [
-        _static_box(f"{name}_sidea", (cx - width / 2, cy, height / 2), (panel_t / 2, depth / 2, height / 2), _METAL_RGBA),
-        _static_box(f"{name}_sideb", (cx + width / 2, cy, height / 2), (panel_t / 2, depth / 2, height / 2), _METAL_RGBA),
-    ]
-    for i, frac in enumerate([0.05, 0.5, 0.95]):
-        geoms.append(
-            _static_box(f"{name}_shelf{i}", (cx, cy, height * frac), (width / 2, depth / 2, panel_t / 2), _METAL_RGBA)
-        )
-    return geoms
-
-
-def _crate(name: str, cx: float, cy: float, half: float = 0.22, rgba: str = _CRATE_RGBAS[0]) -> list:
-    return [_static_box(name, (cx, cy, half), (half, half, half), rgba)]
-
-
 def _build_pickup_object() -> str:
     """A small free-floating box for the Pick & Place demo. contype=8 (a bit
     of its own) / conaffinity=5 (bits 1+4) makes it collide with the
@@ -642,39 +605,151 @@ def _build_grasp_weld(model: "mujoco.MjModel") -> str:
     )
 
 
-def _build_room() -> str:
-    """A rectangular lab room (floor + 4 walls) dressed with simple
-    placeholder furniture -- workbenches along two walls, a shelving unit,
-    and a few storage crates -- with a large open area left clear in the
-    middle for the mobile base to actually drive/walk around in. All
-    primitive box geoms (no external mesh assets); purely a placeholder
-    layout, not a real lab floorplan -- swap in real dimensions/furniture
-    once there's a target environment to match."""
-    e = ROOM_HALF_EXTENT
-    h = ROOM_WALL_HEIGHT
-    t = ROOM_WALL_THICKNESS
+# Manual (teleop) grip -- separate welds from "grasp_weld" above, deliberately.
+# grasp_weld's relpose is only ever correct at the one exact pose Pick &
+# Place's own scripted reach ends at (baked in above, offline). Manual grip
+# has no such fixed pose -- the user can close a hand around the object from
+# anywhere -- so its relpose has to be computed at the moment of the grab
+# instead, live, from whatever the hand/object's actual poses are right
+# then (MujocoViewer.tsx does this by writing model.eq_data directly before
+# setting eq_active, the same fields this file computes offline above).
+# These two are created inactive with an identity relpose that is never
+# meant to be used as-is -- it's overwritten before every activation -- and
+# are a *different* pair of equality rows from grasp_weld specifically so
+# a manual grab can never clobber Pick & Place's own baked-in relpose (or
+# vice versa) by writing to the same eq_data slot.
+MANUAL_GRIP_ANCHOR_BODY_RIGHT = "finger_tip_1"  # same anchor grasp_weld uses
+MANUAL_GRIP_ANCHOR_BODY_LEFT = "finger_tip_3"  # left hand's equivalent fingertip
+
+
+def _build_manual_grip_welds() -> str:
+    return (
+        "<equality>\n"
+        f'  <weld name="grasp_weld_manual_right" body1="pickup_object" body2="{MANUAL_GRIP_ANCHOR_BODY_RIGHT}" '
+        'relpose="0 0 0 1 0 0 0" active="false"/>\n'
+        f'  <weld name="grasp_weld_manual_left" body1="pickup_object" body2="{MANUAL_GRIP_ANCHOR_BODY_LEFT}" '
+        'relpose="0 0 0 1 0 0 0" active="false"/>\n'
+        "</equality>"
+    )
+
+
+def _build_kitchen_import() -> tuple[str, str]:
+    """Reads model/kitchen/manifest.json (see convert_kitchen_obj.py) and
+    returns (asset_xml, geom_xml) for the purchased kitchen furniture set --
+    one <mesh> asset declaration and one flat-colored static <geom> per part,
+    already positioned (the conversion script bakes axis conversion and
+    recentering directly into each part's own vertex data -- see that
+    script's own comment) so these need no per-geom pos/quat here.
+
+    contype/conaffinity are both 0 -- these are *visual only*, deliberately
+    not collidable. MuJoCo approximates every <geom type="mesh"> as its own
+    convex hull for collision, and each of these 106 parts was merged (in
+    convert_kitchen_obj.py) from every instance of one *material* across the
+    whole room, not one physical object -- e.g. the wall/ceiling shell mesh
+    is hollow in reality, but its convex hull is a single solid block
+    filling ~90% of the room's own bounding volume (measured directly:
+    239.6 of a possible ~264 m^3). Using that for collision meant the robot
+    spawned already overlapping a giant invisible solid block, got
+    violently ejected on the very first physics step (this is what the
+    user saw as "something hit it and its body got deformed" -- a real
+    contact impulse, not a rendering glitch), and once pushed past the
+    hull's own boundary was in genuinely empty, uncollidable space outside
+    it -- explaining both reported symptoms (can't move inside the kitchen,
+    moves freely once outside it) as the same root cause. Real collision
+    now comes entirely from _build_kitchen_collision_proxy()'s own simple,
+    hand-measured boxes instead."""
+    manifest = json.loads(KITCHEN_MANIFEST_PATH.read_text())
+    asset_lines = []
+    geom_lines = []
+    for entry in manifest:
+        mesh_name = pathlib.Path(entry["file"]).stem
+        rgba = " ".join(f"{c:.4f}" for c in entry["rgba"])
+        asset_lines.append(f'  <mesh file="meshes/{entry["file"]}" name="{mesh_name}"/>')
+        geom_lines.append(
+            f'  <geom name="{mesh_name}" type="mesh" mesh="{mesh_name}" rgba="{rgba}" contype="0" conaffinity="0"/>'
+        )
+    return "\n".join(asset_lines), "\n".join(geom_lines)
+
+
+# Simple box colliders standing in for the imported kitchen's own (unusable
+# for collision, see _build_kitchen_import()'s own comment) geometry --
+# group="3" so loadHumanoidScene.ts's three.js loader hides them (it skips
+# any geom_group >= 3, the same convention the robot's own collision-only
+# geoms already use), while MuJoCo itself still collides against them
+# normally. Dimensions are real measurements, not guessed: the wall
+# boundary from Stucco_A02_Color_50cm_White's own bounds; the three counter
+# blocks below from running trimesh's connected-components split() on
+# Cozinha_Bancada_Marmore_Biancone_120cm (the counter/island marble) and
+# Wood_Mahogany_33_46_100cm (the cabinet carcasses), which resolves into
+# distinct clusters rather than one bounding box spanning all of them.
+#
+# A single box covering the *combined* bounding rectangle of every counter
+# cluster (the original version of this proxy) was reported live as
+# blocking a walkway a user could see was open in the render -- the real
+# layout is three separate pieces (west-wall counter run, island, north
+# counter/pantry run) with genuine gaps between them, and one bounding
+# rectangle around all three swallows those gaps along with the counters
+# themselves. These three boxes instead track each cluster's own connected-
+# component bounds (with a small pad), leaving the real gap between the
+# island (KITCHEN_ISLAND, y up to 3.0) and the north run
+# (KITCHEN_NORTH_RUN, y from 3.8) open, matching the actual walkway.
+_KITCHEN_WALL_BOUNDS = ((-3.73, 3.73), (-2.75, 7.71), (0.0, 3.70))
+_KITCHEN_WALL_THICKNESS = 0.12
+# The west counter isn't one uniform-depth run -- its own countertop mesh
+# (Cozinha_Bancada_Marmore_Biancone_120cm) is L-shaped: only 0.6m deep from
+# the fridge/window past the appliances (x=-3.5..-2.91, measured off that
+# mesh's own vertices), then steps out to 1.5m deep near the shelf/jars
+# corner (x=-3.5..-1.98) from y=3.87 on. The old single box used the *deep*
+# width for the whole run, which swallowed the entire walkway between the
+# counter and the island along the shallow stretch -- the user's own report
+# ("robot cannot enter from the fridge side"). Two boxes matching the real
+# footprint (small pad beyond each measured edge) instead of one oversized
+# rectangle.
+_KITCHEN_WEST_COUNTER_SHALLOW_BOUNDS = ((-3.6, -2.85), (1.6, 3.9), (0.0, 2.5))
+_KITCHEN_WEST_COUNTER_DEEP_BOUNDS = ((-3.6, -1.9), (3.9, 4.65), (0.0, 2.5))
+_KITCHEN_ISLAND_BOUNDS = ((-1.95, 1.0), (1.6, 3.0), (0.0, 1.0))
+_KITCHEN_NORTH_RUN_BOUNDS = ((-1.85, 0.85), (3.8, 6.0), (0.0, 2.9))
+
+
+def _box_geom(name: str, bounds: tuple) -> str:
+    (x0, x1), (y0, y1), (z0, z1) = bounds
+    cx, cy, cz = (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2
+    hx, hy, hz = (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2
+    return f'  <geom name="{name}" type="box" group="3" pos="{cx} {cy} {cz}" size="{hx} {hy} {hz}" contype="1" conaffinity="1"/>'
+
+
+def _build_kitchen_collision_proxy() -> str:
+    (x0, x1), (y0, y1), (z0, z1) = _KITCHEN_WALL_BOUNDS
+    t = _KITCHEN_WALL_THICKNESS
+    cx, cy, cz = (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2
+    hx, hy, hz = (x1 - x0) / 2, (y1 - y0) / 2, (z1 - z0) / 2
     lines = [
-        _static_box("wall_north", (0, e, h / 2), (e + t, t, h / 2), _WALL_RGBA),
-        _static_box("wall_south", (0, -e, h / 2), (e + t, t, h / 2), _WALL_RGBA),
-        _static_box("wall_east", (e, 0, h / 2), (t, e + t, h / 2), _WALL_RGBA),
-        _static_box("wall_west", (-e, 0, h / 2), (t, e + t, h / 2), _WALL_RGBA),
+        f'  <geom name="kitchen_wall_south" type="box" group="3" pos="{cx} {y0} {cz}" size="{hx + t} {t} {hz}" contype="1" conaffinity="1"/>',
+        f'  <geom name="kitchen_wall_north" type="box" group="3" pos="{cx} {y1} {cz}" size="{hx + t} {t} {hz}" contype="1" conaffinity="1"/>',
+        f'  <geom name="kitchen_wall_east" type="box" group="3" pos="{x1} {cy} {cz}" size="{t} {hy + t} {hz}" contype="1" conaffinity="1"/>',
+        f'  <geom name="kitchen_wall_west" type="box" group="3" pos="{x0} {cy} {cz}" size="{t} {hy + t} {hz}" contype="1" conaffinity="1"/>',
+        _box_geom("kitchen_west_counter_shallow", _KITCHEN_WEST_COUNTER_SHALLOW_BOUNDS),
+        _box_geom("kitchen_west_counter_deep", _KITCHEN_WEST_COUNTER_DEEP_BOUNDS),
+        _box_geom("kitchen_island", _KITCHEN_ISLAND_BOUNDS),
+        _box_geom("kitchen_north_run", _KITCHEN_NORTH_RUN_BOUNDS),
     ]
-
-    inset = e - 0.9  # workbenches/shelving sit just inside the walls
-    # Two workbenches along the north wall, spaced apart.
-    lines += _table("bench_n1", -e / 2, inset)
-    lines += _table("bench_n2", e / 2, inset)
-    # One workbench along the east wall (rotated footprint: deep along x).
-    lines += _table("bench_e1", inset, -e / 2, length=0.7, depth=1.4)
-    # Shelving unit along the west wall.
-    lines += _shelf_unit("shelf_w1", -inset, e / 2 - 0.3)
-    # A small cluster of storage crates near the south wall, out of the main
-    # walking lane down the middle of the room.
-    crate_spots = [(-e + 1.2, -e + 1.0), (-e + 1.7, -e + 1.0), (-e + 1.2, -e + 1.5)]
-    for i, (cx, cy) in enumerate(crate_spots):
-        lines += _crate(f"crate_{i}", cx, cy, rgba=_CRATE_RGBAS[i % len(_CRATE_RGBAS)])
-
     return "\n".join(lines)
+
+
+def _build_room() -> str:
+    """The room is entirely the purchased kitchen asset now (see
+    _build_kitchen_import()/convert_kitchen_obj.py) -- floor, walls,
+    ceiling, cabinets, appliances, and decor all come from that one import,
+    replacing the previous procedural box room (walls + Pick & Place counter
+    benches) outright, per the user's own explicit call. No separate floor
+    plane or wall geoms are added here anymore -- the import supplies its
+    own (Flooring_Parquet_Parallel_H01_120cm and
+    Stucco_A02_Color_50cm_White materials), visually. Real collision comes
+    from _build_kitchen_collision_proxy()'s own invisible boxes instead --
+    see _build_kitchen_import()'s own comment for why the imported mesh
+    geometry itself can't be used for that."""
+    _, kitchen_geoms = _build_kitchen_import()
+    return kitchen_geoms + "\n" + _build_kitchen_collision_proxy()
 
 
 # The four ground-contact wheel discs (2 drive wheels + 2 caster wheels).
@@ -762,6 +837,49 @@ ARM_CHAIN_JOINTS: list[tuple[str, str, str]] = [
     ("Revolute 64", "servo_spacer_hand_2", "palm_left_1"),
     ("Revolute 24", "chest_enclosure_2_1", "neck_joint_3dp_1"),
     ("Revolute 25", "neck_joint_3dp_1", "face_cover_3_1"),
+    # Finger joints (both hands, 15 each) -- left out when this list was
+    # first built since manual grip wasn't driving them yet, so the same
+    # zeroed-jnt_pos CAD placeholder here went unnoticed (a joint that never
+    # actually rotates can't show a wrong-pivot arc). Once grip started
+    # commanding real qpos, they showed exactly the same symptom as every
+    # other un-recentered joint above: fingers swinging away from the hand
+    # in a wide arc instead of curling at their own knuckle. Parent bodies
+    # here are the *compiled* MJCF parents, not the URDF ones -- several
+    # URDF links in each finger's root joint (e.g. "finger_knuckle_1") are
+    # fixed/weld joints that MuJoCo's compiler fuses into their own parent
+    # body, so the joint's real mechanical parent ends up being palm_right_1/
+    # palm_left_1 directly (confirmed via body_parentid on the compiled
+    # model, not assumed from the URDF's own parent tags).
+    ("Revolute 48", "palm_right_1", "thumb_knuckle_1"),
+    ("Revolute 49", "palm_right_1", "finger_rear_1"),
+    ("Revolute 50", "palm_right_1", "finger_rear_2"),
+    ("Revolute 51", "palm_right_1", "finger_rear_3"),
+    ("Revolute 52", "palm_right_1", "finger_rear_4"),
+    ("Revolute 53", "finger_rear_1", "finger_mid_pinky_1"),
+    ("Revolute 54", "finger_rear_2", "finger_mid_1"),
+    ("Revolute 55", "finger_rear_3", "finger_mid_2"),
+    ("Revolute 56", "finger_rear_4", "finger_mid_small_1"),
+    ("Revolute 57", "thumb_knuckle_1", "finger_mid_small_2"),
+    ("Revolute 58", "finger_mid_pinky_1", "finger_tip_small_1"),
+    ("Revolute 59", "finger_mid_1", "finger_tip_1"),
+    ("Revolute 60", "finger_mid_2", "finger_tip_2"),
+    ("Revolute 61", "finger_mid_small_1", "finger_tip_small_2"),
+    ("Revolute 62", "finger_mid_small_2", "finger_tip_small_3"),
+    ("Revolute 69", "palm_left_1", "thumb_knuckle_2"),
+    ("Revolute 70", "palm_left_1", "finger_rear_5"),
+    ("Revolute 71", "palm_left_1", "finger_rear_6"),
+    ("Revolute 72", "palm_left_1", "finger_rear_7"),
+    ("Revolute 73", "palm_left_1", "finger_rear_8"),
+    ("Revolute 74", "finger_rear_5", "finger_mid_pinky_2"),
+    ("Revolute 75", "finger_rear_6", "finger_mid_3"),
+    ("Revolute 76", "finger_rear_7", "finger_mid_4"),
+    ("Revolute 77", "finger_rear_8", "finger_mid_small_3"),
+    ("Revolute 78", "thumb_knuckle_2", "finger_mid_small_4"),
+    ("Revolute 79", "finger_mid_pinky_2", "finger_tip_small_4"),
+    ("Revolute 80", "finger_mid_3", "finger_tip_3"),
+    ("Revolute 81", "finger_mid_4", "finger_tip_4"),
+    ("Revolute 82", "finger_mid_small_3", "finger_tip_small_5"),
+    ("Revolute 83", "finger_mid_small_4", "finger_tip_small_6"),
 ]
 # A nearest-mesh-point match this far apart means the two bodies' meshes
 # don't actually touch at rest -- ARM_CHAIN_JOINTS would be recentering onto
@@ -1013,6 +1131,13 @@ def main() -> None:
 
     OUTPUT_DIR.mkdir(exist_ok=True)
     OUTPUT_MESHES_DIR.mkdir(exist_ok=True)
+    # Every mesh this script cares about gets re-copied in full below (both
+    # the robot's own and the kitchen's) -- clear stale leftovers first, or
+    # renaming/re-splitting a material (see convert_kitchen_obj.py) just
+    # keeps piling up old copies here under their old names forever, since
+    # the copy loops below only ever add files, never remove them.
+    for stale in OUTPUT_MESHES_DIR.glob("*.stl"):
+        stale.unlink()
     mujoco.mj_saveLastXML(str(OUTPUT_MJCF_PATH), model)
 
     # mj_saveLastXML carries over mesh <file> paths as given to the compiler,
@@ -1026,6 +1151,19 @@ def main() -> None:
             shutil.copy2(stl, OUTPUT_MESHES_DIR / stl.name)
     mjcf_text = mjcf_text.replace('file="../meshes/', 'file="meshes/')
 
+    # Kitchen environment furniture meshes (see convert_kitchen_obj.py) --
+    # copied and declared the same way as the robot's own meshes just above,
+    # into the same meshes/ directory (flat, no subfolder, so
+    # loadHumanoidScene.ts's generic "fetch every file referenced as
+    # meshes/<name>" logic needs no changes to pick these up too). mj_saveLastXML
+    # already wrote an <asset> block for the robot's own meshes; this just
+    # appends more <mesh> entries to it via text injection, since these
+    # parts were never part of the compiled `model` object above.
+    for stl in KITCHEN_MESHES_DIR.glob("*.stl"):
+        shutil.copy2(stl, OUTPUT_MESHES_DIR / stl.name)
+    kitchen_asset_xml, _ = _build_kitchen_import()
+    mjcf_text = mjcf_text.replace("<asset>", "<asset>\n" + kitchen_asset_xml, 1)
+
     # hide_dummy_actuator_meshes() is NOT called here (left defined, in case
     # a future joint's own mesh gap turns out not to be a jnt_pos bug the
     # way the rest of the arm chain's was): the actual cause of these
@@ -1035,32 +1173,17 @@ def main() -> None:
     # anything. Brought back per the user's own request once that was fixed.
     mjcf_text = disable_wheel_floor_collision(mjcf_text)
 
-    # Floor + the lab room (walls + furniture) the mobile base can drive
-    # around inside. Walls/furniture share collision bit 1 with the robot's
-    # own default conaffinity (see the <default><geom .../></default> added
-    # below), so they still stop the robot from being driven through. The
-    # floor plane gets its *own* bit (4) instead of sharing bit 1 -- no
-    # robot geom's conaffinity includes it, so nothing on the robot collides
-    # with the bare floor at all. That's intentional, not an oversight: the
-    # virtual planar base (see resolve_urdf()) already fixes the robot's
-    # height directly, so floor contact was never load-bearing here, and
-    # base_link's own collision box happens to sit flush with the floor at
-    # rest -- confirmed live in-browser as the reason a held forward drive
-    # command (well within the actuator's own force budget, ~39N of ~150N
-    # available) produced a base speed of ~0.004 m/s instead of ~0.8: most
-    # of that force was going into kinetic friction against the floor
-    # instead of moving the robot. (Recentering the wheels onto their own
-    # joints and stripping their own floor collision, above and in
-    # recenter_wheel_geoms()/disable_wheel_floor_collision(), fixed the
-    # wheels' own contribution to this same problem but not base_link's.)
-    floor_extent = ROOM_HALF_EXTENT + 0.2
-    mjcf_text = mjcf_text.replace(
-        "<worldbody>",
-        '<worldbody>\n'
-        f'  <geom name="floor" type="plane" size="{floor_extent} {floor_extent} 0.1" rgba="0.25 0.25 0.28 1" contype="4" conaffinity="4"/>\n'
-        f"{_build_room()}\n",
-        1,
-    )
+    # The room -- entirely the imported kitchen asset now, including its own
+    # floor mesh (see _build_room()'s own comment) -- shares collision bit 1
+    # with the robot's own default conaffinity (see the
+    # <default><geom .../></default> added below), so it stops the robot
+    # from being driven through it, and the pickup object's own conaffinity
+    # (bits 1+4, see _build_pickup_object()) already includes bit 1 too, so
+    # it still has a floor to land on if dropped -- no separate procedural
+    # floor plane is needed for that anymore. (The virtual planar base, see
+    # resolve_urdf(), fixes the robot's own height directly regardless of
+    # floor contact, same as before.)
+    mjcf_text = mjcf_text.replace("<worldbody>", f"<worldbody>\n{_build_room()}\n", 1)
 
     # Per-joint *passive* damping -- small, uniform, numerical-stability-only
     # (real per-joint response damping is each position actuator's own kv
@@ -1143,6 +1266,7 @@ def main() -> None:
     # as every other load in this script.
     staging_model = mujoco.MjModel.from_xml_path(str(OUTPUT_MJCF_PATH))
     mjcf_text = mjcf_text.replace("</mujoco>", _build_grasp_weld(staging_model) + "\n</mujoco>")
+    mjcf_text = mjcf_text.replace("</mujoco>", _build_manual_grip_welds() + "\n</mujoco>")
     OUTPUT_MJCF_PATH.write_text(mjcf_text)
 
     # Verify the saved MJCF is loadable standalone before declaring success.
