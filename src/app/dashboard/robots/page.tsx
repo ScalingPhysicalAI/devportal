@@ -1,17 +1,22 @@
+import { Bot, Sparkles } from "lucide-react";
+
 import { Button } from "@/components/ui/Button";
 
 export default function RobotsPage() {
   return (
     <div className="w-full">
-      <p className="text-technical text-xs text-sand mb-2">FLEET</p>
-      <h1 className="text-display text-4xl text-off-white">Your robots</h1>
-      <p className="mt-3 max-w-lg text-sm text-off-white/70">
-        Pair a Buildo unit to your account to monitor telemetry, push
-        trained models, and manage installed skills remotely.
-      </p>
+      <div className="animate-fade-up">
+        <p className="text-technical text-xs text-sand mb-2">FLEET</p>
+        <h1 className="text-display text-4xl text-off-white">Your robots</h1>
+        <p className="mt-3 max-w-lg text-sm text-off-white/70">
+          Pair a Buildo unit to your account to monitor telemetry, push
+          trained models, and manage installed skills remotely.
+        </p>
+      </div>
 
-      <div className="mt-10 rounded-sm border border-dashed border-border-strong bg-panel px-8 py-16 text-center">
-        <p className="text-display text-2xl text-off-white">No robots paired yet</p>
+      <div className="mt-10 rounded-sm border border-dashed border-border-strong bg-panel px-8 py-16 text-center animate-fade-up [animation-delay:60ms]">
+        <Bot size={28} className="mx-auto text-text-muted" strokeWidth={1.5} />
+        <p className="text-display text-2xl text-off-white mt-4">No robots paired yet</p>
         <p className="mx-auto mt-2 max-w-sm text-sm text-text-muted">
           Robot pairing over the SDK is coming soon. Once paired, live
           telemetry, battery, and task status will appear here.
@@ -21,7 +26,7 @@ export default function RobotsPage() {
         </Button>
       </div>
 
-      <div className="mt-10 opacity-40">
+      <div className="mt-10 opacity-40 animate-fade-up [animation-delay:120ms]">
         <p className="text-technical text-xs text-text-muted mb-4">PREVIEW — TELEMETRY CARD</p>
         <div className="grid gap-5 sm:grid-cols-2">
           {["Buildo Unit #001", "Buildo Unit #002"].map((name) => (
@@ -43,6 +48,9 @@ export default function RobotsPage() {
                   <p className="text-text-muted text-xs">Model</p>
                   <p className="text-technical mt-1">—</p>
                 </div>
+              </div>
+              <div className="mt-4 flex items-center gap-1.5 border-t border-border pt-4 text-xs text-text-muted">
+                <Sparkles size={12} /> No skills installed
               </div>
             </div>
           ))}

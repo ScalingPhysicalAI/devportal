@@ -10,7 +10,7 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "welcome",
     title: "Welcome to Starforge",
-    body: "Quick tour of the developer portal — test Buildo in simulation, train your robot, rent GPU compute, and pick up new skills. Takes about a minute.",
+    body: "Quick tour of the developer portal — test Buildo in simulation, train your robot, and pick up new skills. Takes about a minute.",
   },
   {
     id: "simulation",
@@ -25,7 +25,7 @@ export const onboardingSteps: OnboardingStep[] = [
   {
     id: "nav-overview",
     title: "Overview",
-    body: "Your credit balance, GPU sessions, skills owned, and recent activity, all in one place.",
+    body: "Your credit balance, skills owned, and recent activity, all in one place.",
     target: "nav-overview",
   },
   {
@@ -39,12 +39,6 @@ export const onboardingSteps: OnboardingStep[] = [
     title: "Train",
     body: "Train your robot starting from a pre-trained Buildo model, or bring your own dataset.",
     target: "nav-train",
-  },
-  {
-    id: "nav-gpu",
-    title: "GPU compute",
-    body: "Rent on-demand GPU time, paid with your credit balance, to train and evaluate your models.",
-    target: "nav-gpu",
   },
   {
     id: "nav-skills",

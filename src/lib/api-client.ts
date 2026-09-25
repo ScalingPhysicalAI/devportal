@@ -28,15 +28,6 @@ export async function connectWallet(address: string) {
   return handle<{ user: SafeUser; rewardGranted: number }>(res);
 }
 
-export async function rentGpu(gpuType: string, hours: number) {
-  const res = await fetch("/api/gpu/rent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ gpuType, hours }),
-  });
-  return handle<{ user: SafeUser; session: unknown }>(res);
-}
-
 export async function completeOnboarding() {
   const res = await fetch("/api/auth/onboarding", { method: "POST" });
   return handle<{ user: SafeUser }>(res);

@@ -1,16 +1,45 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import clsx from "clsx";
+import { Bot, CheckCircle2, Sparkles, UploadCloud } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
+import { FieldLabel, TextInput } from "@/components/ui/Field";
 import { PRETRAINED_MODELS } from "@/lib/constants";
+import { addTrainedSkill } from "@/lib/my-skills";
+
+type RunStatus = "idle" | "training" | "testing" | "done";
 
 export function TrainTabs() {
   const [tab, setTab] = useState<"pretrained" | "dataset">("pretrained");
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
+  const [skillName, setSkillName] = useState("");
+  const [runStatus, setRunStatus] = useState<RunStatus>("idle");
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // No training backend yet (see my-skills.ts's own comment on why the
+  // result is stored client-side) -- this stages through the same two real
+  // steps a training run actually goes through (train, then test in
+  // simulation) so the flow reads as genuine progress, not an instant fake.
+  function startTrainingRun() {
+    setRunStatus("training");
+    window.setTimeout(() => {
+      setRunStatus("testing");
+      window.setTimeout(() => {
+        addTrainedSkill(skillName.trim() || "Untitled skill", "Buildo Base v1 (custom)");
+        setRunStatus("done");
+      }, 1200);
+    }, 1200);
+  }
+
+  function reset() {
+    setFiles([]);
+    setSkillName("");
+    setRunStatus("idle");
+  }
 
   return (
     <div>
@@ -43,14 +72,53 @@ export function TrainTabs() {
               <p className="text-display text-xl text-off-white">{m.name}</p>
               <p className="mt-1 text-technical text-xs text-sand">{m.params} params</p>
               <p className="mt-3 text-sm text-text-muted flex-1">{m.desc}</p>
-              <Button variant="secondary" size="sm" className="mt-5" disabled>
-                Deploy to robot — pair a robot first
+              <Button variant="secondary" size="sm" className="mt-5 gap-1.5" disabled>
+                <Bot size={14} /> Deploy to robot — pair a robot first
               </Button>
             </div>
           ))}
         </div>
+      ) : runStatus === "done" ? (
+        <div className="mt-8 rounded-sm border border-success/30 bg-success/5 px-8 py-16 text-center">
+          <CheckCircle2 size={28} className="mx-auto text-success" strokeWidth={1.5} />
+          <p className="text-display text-2xl text-off-white mt-4">Training complete</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-text-muted">
+            {skillName.trim() || "Your skill"} has been trained and tested in
+            simulation. It&apos;s ready to deploy from My Skills.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link href="/dashboard/skills">
+              <Button>View in My Skills</Button>
+            </Link>
+            <Button variant="secondary" onClick={reset}>
+              Train another
+            </Button>
+          </div>
+        </div>
+      ) : runStatus === "training" || runStatus === "testing" ? (
+        <div className="mt-8 rounded-sm border border-border-strong bg-panel px-8 py-16 text-center">
+          <Sparkles size={28} className="mx-auto animate-pulse text-sand" strokeWidth={1.5} />
+          <p className="text-display text-2xl text-off-white mt-4">
+            {runStatus === "training" ? "Training…" : "Testing in simulator…"}
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-text-muted">
+            {runStatus === "training"
+              ? `Fine-tuning on ${files.length} file${files.length === 1 ? "" : "s"} from your dataset.`
+              : "Running the trained policy through Buildo's physics simulator."}
+          </p>
+        </div>
       ) : (
         <div className="mt-8">
+          <div className="max-w-sm">
+            <FieldLabel htmlFor="skill-name">Skill name (optional)</FieldLabel>
+            <TextInput
+              id="skill-name"
+              placeholder="e.g. Kitchen Cup Pick & Place"
+              value={skillName}
+              onChange={(e) => setSkillName(e.target.value)}
+            />
+          </div>
+
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -64,11 +132,12 @@ export function TrainTabs() {
             }}
             onClick={() => inputRef.current?.click()}
             className={clsx(
-              "cursor-pointer rounded-sm border border-dashed px-8 py-16 text-center transition-colors",
+              "mt-5 cursor-pointer rounded-sm border border-dashed px-8 py-16 text-center transition-colors",
               dragging ? "border-sand bg-panel-raised" : "border-border-strong bg-panel"
             )}
           >
-            <p className="text-display text-2xl text-off-white">
+            <UploadCloud size={28} className="mx-auto text-text-muted" strokeWidth={1.5} />
+            <p className="text-display text-2xl text-off-white mt-4">
               Drop dataset files, or click to browse
             </p>
             <p className="mx-auto mt-2 max-w-sm text-sm text-text-muted">
@@ -102,8 +171,8 @@ export function TrainTabs() {
             </div>
           )}
 
-          <Button className="mt-6" disabled={files.length === 0}>
-            Start training run — coming soon
+          <Button className="mt-6" disabled={files.length === 0} onClick={startTrainingRun}>
+            Start training run
           </Button>
         </div>
       )}

@@ -4,16 +4,16 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import { Bot, CircleHelp, GraduationCap, LayoutGrid, Sparkles, Waves } from "lucide-react";
 
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider";
 
 const items = [
-  { href: "/dashboard", label: "Overview", exact: true, tour: "nav-overview" },
-  { href: "/dashboard/robots", label: "Robots", tour: "nav-robots" },
-  { href: "/dashboard/simulate", label: "Simulation", tour: "nav-simulate" },
-  { href: "/dashboard/train", label: "Train", tour: "nav-train" },
-  { href: "/dashboard/gpu", label: "GPU compute", tour: "nav-gpu" },
-  { href: "/dashboard/skills", label: "Skills", tour: "nav-skills" },
+  { href: "/dashboard", label: "Overview", exact: true, tour: "nav-overview", icon: LayoutGrid },
+  { href: "/dashboard/robots", label: "Robots", tour: "nav-robots", icon: Bot },
+  { href: "/dashboard/simulate", label: "Simulation", tour: "nav-simulate", icon: Waves },
+  { href: "/dashboard/train", label: "Train", tour: "nav-train", icon: GraduationCap },
+  { href: "/dashboard/skills", label: "Skills", tour: "nav-skills", icon: Sparkles },
 ];
 
 interface SidebarProps {
@@ -54,6 +54,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <nav className="flex h-full flex-col gap-1 px-4 py-8 overflow-y-auto">
           {items.map((item) => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            const Icon = item.icon;
             return (
               <Link
                 key={item.href}
@@ -61,12 +62,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 data-tour={item.tour}
                 onClick={onClose}
                 className={clsx(
-                  "rounded-sm px-3 py-2 text-sm transition-colors",
+                  "flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm transition-colors",
                   active
                     ? "bg-panel text-sand border border-border"
                     : "text-off-white/60 hover:text-off-white hover:bg-white/[0.03] border border-transparent"
                 )}
               >
+                <Icon size={16} strokeWidth={1.75} />
                 {item.label}
               </Link>
             );
@@ -79,8 +81,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 onClose();
                 start();
               }}
-              className="w-full rounded-sm border border-transparent px-3 py-2 text-left text-sm text-off-white/60 transition-colors hover:bg-white/[0.03] hover:text-off-white cursor-pointer"
+              className="flex w-full items-center gap-2.5 rounded-sm border border-transparent px-3 py-2 text-left text-sm text-off-white/60 transition-colors hover:bg-white/[0.03] hover:text-off-white cursor-pointer"
             >
+              <CircleHelp size={16} strokeWidth={1.75} />
               Tutorial
             </button>
           </div>

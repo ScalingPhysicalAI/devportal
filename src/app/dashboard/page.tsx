@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight, Coins, GraduationCap, Sparkles } from "lucide-react";
 
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -16,13 +17,12 @@ export default async function DashboardOverviewPage({
   const [user, { welcome, verified }] = await Promise.all([getCurrentUser(), searchParams]);
   if (!user) return null;
 
-  const [transactions, gpuCount, skillCount] = await Promise.all([
+  const [transactions, skillCount] = await Promise.all([
     prisma.tokenTransaction.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 6,
     }),
-    prisma.gpuSession.count({ where: { userId: user.id } }),
     prisma.skillOrder.count({ where: { userId: user.id } }),
   ]);
 
@@ -60,18 +60,19 @@ export default async function DashboardOverviewPage({
         </div>
       )}
 
-      <p className="text-technical text-xs text-sand mb-2">OVERVIEW</p>
-      <h1 className="text-display text-4xl text-off-white">
-        Welcome back, {user.name.split(" ")[0]}
-      </h1>
-
-      <div className="mt-8 grid gap-5 sm:grid-cols-3">
-        <StatCard label="Credit balance" value={`${user.tokenBalance}${TOKEN_SYMBOL}`} />
-        <StatCard label="GPU sessions" value={gpuCount} />
-        <StatCard label="Skills owned" value={skillCount} />
+      <div className="animate-fade-up">
+        <p className="text-technical text-xs text-sand mb-2">OVERVIEW</p>
+        <h1 className="text-display text-4xl text-off-white">
+          Welcome back, {user.name.split(" ")[0]}
+        </h1>
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_1fr]">
+      <div className="mt-8 grid gap-5 sm:grid-cols-2 animate-fade-up [animation-delay:60ms]">
+        <StatCard icon={Coins} label="Credit balance" value={`${user.tokenBalance}${TOKEN_SYMBOL}`} />
+        <StatCard icon={Sparkles} label="Skills owned" value={skillCount} />
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_1fr] animate-fade-up [animation-delay:120ms]">
         <SimulationCard />
 
         <div className="rounded-sm border border-border bg-panel p-7">
@@ -79,29 +80,30 @@ export default async function DashboardOverviewPage({
           <div className="flex flex-col gap-3">
             <Link href="/dashboard/train">
               <Button variant="secondary" className="w-full justify-between">
-                Train your robot <span aria-hidden>→</span>
-              </Button>
-            </Link>
-            <Link href="/dashboard/gpu">
-              <Button variant="secondary" className="w-full justify-between">
-                Rent GPU compute <span aria-hidden>→</span>
+                <span className="flex items-center gap-2">
+                  <GraduationCap size={16} /> Train your robot
+                </span>
+                <ArrowRight size={16} aria-hidden />
               </Button>
             </Link>
             <Link href="/dashboard/skills">
               <Button variant="secondary" className="w-full justify-between">
-                Browse skills <span aria-hidden>→</span>
+                <span className="flex items-center gap-2">
+                  <Sparkles size={16} /> Browse skills
+                </span>
+                <ArrowRight size={16} aria-hidden />
               </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="mt-8">
+      <div className="mt-8 animate-fade-up [animation-delay:180ms]">
         <p className="text-technical text-xs text-sand mb-4">RECENT ACTIVITY</p>
         <div className="overflow-hidden rounded-sm border border-border">
           {transactions.length === 0 ? (
             <p className="bg-panel px-5 py-8 text-center text-sm text-text-muted">
-              No activity yet — rent GPU compute or buy a skill to get started.
+              No activity yet — buy a skill to get started.
             </p>
           ) : (
             <table className="w-full text-sm">

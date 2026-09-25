@@ -25,11 +25,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/dashboard/gpu" className="hover:text-sand">
-                  GPU compute
-                </Link>
-              </li>
-              <li>
                 <Link href="/dashboard/skills" className="hover:text-sand">
                   Skills
                 </Link>

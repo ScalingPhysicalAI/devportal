@@ -80,7 +80,7 @@ function welcomeEmailHtml(name: string) {
       <td style="padding:36px 32px 8px 32px;">
         <h1 style="margin:0 0 16px 0;font-size:22px;line-height:1.3;color:#111111;">You're in, ${name}.</h1>
         <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
-          Your Starforge Developer Portal account is registered. From here you can connect a wallet, train your Buildo robot, rent GPU compute, and pick up new skills.
+          Your Starforge Developer Portal account is registered. From here you can connect a wallet, train your Buildo robot, test it in simulation, and pick up new skills.
         </p>
         <p style="margin:0 0 28px 0;font-size:15px;line-height:1.6;color:#3f3a33;">
           Connect your wallet from the dashboard to claim your early-signup 20$ credit reward.
