@@ -374,19 +374,6 @@ _BOOK_REGION = ((-1.10, -0.70), (1.70, 2.00), (0.85, 1.05))
 # "the shelf connecting front wall's shelf and left wall's shelf looks
 # white... make it brown as well."
 _SHELF_CONNECTOR_REGION = ((-3.50, -2.60), (3.80, 4.50), (1.40, 2.40))
-# The saucer sits directly under the cup in the original scan; when the cup
-# was moved from (0.532, 1.939, 0.947) to CUP_OBJECT_POS's new (0.85, 1.93,
-# 0.953) in urdf_to_mjcf.py -- near the island's east edge, within this arm's
-# actual verified reach (see PICK_GRASP_QPOS's own comment in
-# MujocoViewer.tsx) instead of its old spot -- the user asked for the saucer
-# to move with it ("move the cup along with its saucer"). Unlike the cup,
-# the saucer stays static scene geometry (baked, absolute room-frame
-# vertices, no body of its own), so it's carried along here by shifting
-# those vertices by the same delta, not by repositioning a body. (This was
-# 0.418 in x on the cup's first move to the very edge of the counter --
-# reported live as looking like it was hanging off -- then pulled in
-# another 0.10m to its current spot, hence 0.318 here.)
-_SAUCER_SHIFT = np.array([0.318, -0.009, 0.006])
 
 
 def _region_contains(center, region) -> bool:
@@ -682,28 +669,9 @@ def main() -> None:
                 if not vs:
                     continue
                 out_name = f"kitchen_{_safe_name(material_name)}_{suffix}_{i}"
-                out_verts = np.concatenate(vs)
-                out_faces = np.concatenate(fs)
-                if suffix == "saucer":
-                    out_verts = out_verts + _SAUCER_SHIFT
-                out_mesh = trimesh.Trimesh(vertices=out_verts, faces=out_faces, process=False)
+                out_mesh = trimesh.Trimesh(vertices=np.concatenate(vs), faces=np.concatenate(fs), process=False)
                 out_mesh.export(MESHES_DIR / f"{out_name}.stl")
                 manifest.append({"file": f"{out_name}.stl", "material": f"{material_name}{suffix}", "rgba": list(rgba)})
-                if suffix == "cup":
-                    # A second copy of this same cup geometry, recentered on
-                    # its own bounding-box middle instead of the absolute
-                    # room-frame coordinates every other kitchen part uses --
-                    # exported under a fixed name (not the {i}-suffixed one
-                    # above, which shifts between runs) so
-                    # urdf_to_mjcf.py's _build_cup_object() can reference it
-                    # directly. The cup was promoted from fixed kitchen
-                    # decoration to a real, free-floating pickable body (see
-                    # that function's own comment); a body's own mesh geom
-                    # needs vertices local to *its* origin, not baked to a
-                    # spot on the counter it won't stay at once picked up.
-                    center = (out_verts.min(axis=0) + out_verts.max(axis=0)) / 2
-                    recentered = trimesh.Trimesh(vertices=out_verts - center, faces=out_faces, process=False)
-                    recentered.export(MESHES_DIR / "kitchen_cup_object_visual.stl")
             continue
 
         if material_name == "Material__4010":

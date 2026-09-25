@@ -209,44 +209,6 @@ PICKUP_OBJECT_POS = (2.0, -1.0, 0.02 + PICKUP_OBJECT_HALF_SIZE)  # on the floor
 PICKUP_OBJECT_MASS = 0.15  # kg -- light enough for the placeholder finger actuators to hold
 PICKUP_OBJECT_RGBA = "0.95 0.45 0.1 1"
 
-# The kitchen counter's own coffee cup (FrontColorcup in
-# model/kitchen/manifest.json -- see convert_kitchen_obj.py's own comment on
-# how it was found/colored), promoted from fixed decoration to a real,
-# free-floating, grabbable body -- the user's own ask: "make the cups and
-# coffee machine live... let's start with the cup." A plain cylinder here
-# rather than the cup's own (much more detailed, but visual-only) mesh --
-# same reasoning as PICKUP_OBJECT_HALF_SIZE's box above: a simple primitive
-# gives clean, predictable collision geometry for the same placeholder
-# finger/weld grasp this file already has, without needing that mesh
-# recentered around its own local origin first (its vertices, like every
-# kitchen part's, are baked to absolute room-frame positions, not centered
-# on the object itself -- fine for a static contype=0 decoration, not
-# directly usable as a moving body's own collision geom).
-# Originally measured directly off that mesh's own bounds: center (0.532,
-# 1.939, 0.947), extents (0.090, 0.114, 0.085) in the kitchen's own room
-# frame -- the counter by the sink the user already pointed out this cup
-# sits on. Moved from there to here (still the same counter, just its own
-# east edge) per the user's own ask, after extensive verified dynamics
-# testing (see MujocoViewer.tsx's PICK_GRASP_QPOS comment) established that
-# no arm pose -- with or without waist bend -- can close the ~0.58m gap
-# from PICK_PARK_PICK to the old spot without an animated assist, but a
-# forward waist bend *can* bring the palm to within about 10cm of a spot
-# like this one for real, letting the pickup finally look like an actual
-# reach instead of the cup sliding into the hand. First landed this at
-# (0.95, 1.93, ...), right at the island's own x<=1.0 edge -- reported live
-# as looking like the cup was hanging half off the counter -- so it moved in
-# another 10cm to here, still well within PICK_GRASP_QPOS's reach (see that
-# constant's own comment for the pose this pairs with, solved specifically
-# to reach *this* spot, not the old one). The saucer moved the same total
-# delta from its own original spot (see convert_kitchen_obj.py's
-# _SAUCER_SHIFT); z stays close to the original (island counter top 0.91 +
-# this cup's own half-height 0.043).
-CUP_OBJECT_POS = (0.85, 1.93, 0.953)
-CUP_OBJECT_RADIUS = 0.045
-CUP_OBJECT_HALF_HEIGHT = 0.043
-CUP_OBJECT_MASS = 0.12  # kg -- lighter than the placeholder box, this is just a cup
-CUP_OBJECT_RGBA = "0.36 0.20 0.09 1"  # same brown as the cup's own static color
-
 # --- Pick & Place grasp geometry (right arm: palm_right_1's chain) ---------
 # Solved offline (numeric IK against this same model, minimizing the 4
 # main-finger fingertip centroid's distance to a target point -- the thumb
@@ -551,39 +513,6 @@ def _build_pickup_object() -> str:
     )
 
 
-def _build_cup_object() -> tuple[str, str]:
-    """The counter's own coffee cup, as a real body -- see CUP_OBJECT_POS's
-    own comment for what it replaces. Two geoms, same split as every other
-    piece of kitchen furniture (see _build_kitchen_import()'s own comment
-    on visual mesh vs. collision proxy): the cup's own real mesh
-    (kitchen_cup_object_visual.stl -- a recentered copy of the same
-    geometry FrontColorcup renders everywhere else, see
-    convert_kitchen_obj.py's own comment on why it needs its own local
-    origin) for how it looks, contype=0/conaffinity=0 since a detailed
-    non-convex mesh makes a poor collision shape; a plain cylinder,
-    invisible (group=3, see the kitchen collision boxes' own convention)
-    for actually colliding, contype=8/conaffinity=5 -- same reasoning as
-    _build_pickup_object(): collides with the counter/floor/walls (bits 1
-    and 4) but not the robot's own body (bit 2), since holding it is a
-    kinematic follow, not finger contact (see MujocoViewer.tsx's
-    GRABBABLE_OBJECTS -- this is the second body it can hold, alongside
-    pickup_object)."""
-    x, y, z = CUP_OBJECT_POS
-    r, h = CUP_OBJECT_RADIUS, CUP_OBJECT_HALF_HEIGHT
-    asset_xml = '  <mesh file="meshes/kitchen_cup_object_visual.stl" name="kitchen_cup_object_visual"/>'
-    body_xml = (
-        f'  <body name="cup_object" pos="{x} {y} {z}">\n'
-        f'    <freejoint name="cup_object_free"/>\n'
-        f'    <inertial pos="0 0 0" mass="{CUP_OBJECT_MASS}" diaginertia="0.0001 0.0001 0.0001"/>\n'
-        f'    <geom name="cup_object_visual" type="mesh" mesh="kitchen_cup_object_visual" rgba="{CUP_OBJECT_RGBA}" '
-        f'contype="0" conaffinity="0"/>\n'
-        f'    <geom name="cup_object_geom" type="cylinder" size="{r} {h}" group="3" contype="8" conaffinity="5" '
-        f'friction="1.2 0.01 0.0002"/>\n'
-        f"  </body>"
-    )
-    return asset_xml, body_xml
-
-
 def _quat_mul(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     w1, x1, y1, z1 = a
     w2, x2, y2, z2 = b
@@ -676,46 +605,32 @@ def _build_grasp_weld(model: "mujoco.MjModel") -> str:
     )
 
 
-# Manual (teleop) grip does NOT use an equality weld the way grasp_weld
-# above does, despite that being the obvious design (and the first one
-# tried here). Two dead ends, in order:
-#
-# 1. Created inactive, MujocoViewer.tsx flips data.eq_active on/off around
-#    each grab. This engine build's JS bindings throw
-#    ("_emval_take_value has unknown type ...memory_viewIbEE") on *any*
-#    touch of a bool-typed mjData/mjModel array, which is exactly what
-#    eq_active is -- confirmed directly (both data.eq_active and
-#    model.eq_active0 throw on a bare *read*, let alone a write). Every
-#    numeric array (eq_data included) is fine; it's specifically the
-#    boolean ones this build can't marshal, so this would crash the first
-#    time any user actually closed a hand near something.
-# 2. Leave the weld permanently active="true" instead, and have
-#    MujocoViewer.tsx make it a no-op while not gripping by continuously
-#    overwriting relpose, every frame, to match whatever the *current*
-#    true relative pose already is (zero error -> zero force, in theory).
-#    Confirmed live (headless, stepping the compiled model directly) that
-#    this doesn't actually work: a weld constrains *relative motion*, not
-#    just relative position at the instant it's set, so an "active" weld
-#    with a relpose that's merely one physics step stale still resists
-#    ordinary gravity/contact motion on both bodies every single step --
-#    over hundreds of steps this measurably drags the free object toward
-#    the hand (or vice versa) even though the JS was trying to keep it
-#    inert. There's no way to make an *active* weld truly inert short of
-#    recomputing relpose fully within the same step the solver uses it,
-#    which the discrete step loop doesn't allow.
-#
-# What actually works, and is what MujocoViewer.tsx does: no equality
-# constraint at all for manual grip. On grab, record the object's pose
-# relative to the anchor fingertip (same relative-pose math as above, just
-# computed live); every frame while held, directly overwrite the object's
-# own freejoint qpos to (anchor's current pose) composed with that fixed
-# offset, and zero its qvel -- a kinematic follow, not a physics
-# constraint. This needs nothing from mjModel/mjData beyond the plain
-# numeric arrays already confirmed working everywhere else in this file.
-# grasp_weld above is left alone (still active="false", toggled via the
-# same broken data.eq_active) since Pick & Place is already unreachable
-# from the UI and documented elsewhere as broken/stale regardless -- not
-# worth the same rework for a dead code path.
+# Manual (teleop) grip -- separate welds from "grasp_weld" above, deliberately.
+# grasp_weld's relpose is only ever correct at the one exact pose Pick &
+# Place's own scripted reach ends at (baked in above, offline). Manual grip
+# has no such fixed pose -- the user can close a hand around the object from
+# anywhere -- so its relpose has to be computed at the moment of the grab
+# instead, live, from whatever the hand/object's actual poses are right
+# then (MujocoViewer.tsx does this by writing model.eq_data directly before
+# setting eq_active, the same fields this file computes offline above).
+# These two are created inactive with an identity relpose that is never
+# meant to be used as-is -- it's overwritten before every activation -- and
+# are a *different* pair of equality rows from grasp_weld specifically so
+# a manual grab can never clobber Pick & Place's own baked-in relpose (or
+# vice versa) by writing to the same eq_data slot.
+MANUAL_GRIP_ANCHOR_BODY_RIGHT = "finger_tip_1"  # same anchor grasp_weld uses
+MANUAL_GRIP_ANCHOR_BODY_LEFT = "finger_tip_3"  # left hand's equivalent fingertip
+
+
+def _build_manual_grip_welds() -> str:
+    return (
+        "<equality>\n"
+        f'  <weld name="grasp_weld_manual_right" body1="pickup_object" body2="{MANUAL_GRIP_ANCHOR_BODY_RIGHT}" '
+        'relpose="0 0 0 1 0 0 0" active="false"/>\n'
+        f'  <weld name="grasp_weld_manual_left" body1="pickup_object" body2="{MANUAL_GRIP_ANCHOR_BODY_LEFT}" '
+        'relpose="0 0 0 1 0 0 0" active="false"/>\n'
+        "</equality>"
+    )
 
 
 def _build_kitchen_import() -> tuple[str, str]:
@@ -747,12 +662,6 @@ def _build_kitchen_import() -> tuple[str, str]:
     asset_lines = []
     geom_lines = []
     for entry in manifest:
-        if entry["material"] in _KITCHEN_DYNAMIC_MATERIALS:
-            # This one's a real, pickable object now (see _build_cup_object()
-            # and friends) instead of fixed kitchen dressing -- skip its
-            # static copy here or the room would show two cups, one of them
-            # a ghost the robot can walk straight through.
-            continue
         mesh_name = pathlib.Path(entry["file"]).stem
         rgba = " ".join(f"{c:.4f}" for c in entry["rgba"])
         asset_lines.append(f'  <mesh file="meshes/{entry["file"]}" name="{mesh_name}"/>')
@@ -760,15 +669,6 @@ def _build_kitchen_import() -> tuple[str, str]:
             f'  <geom name="{mesh_name}" type="mesh" mesh="{mesh_name}" rgba="{rgba}" contype="0" conaffinity="0"/>'
         )
     return "\n".join(asset_lines), "\n".join(geom_lines)
-
-
-# Materials pulled out of the static kitchen import above because they're
-# being promoted to real, free-floating, pickable bodies instead (see the
-# _build_*_object() functions below) -- kept as a set rather than one-off
-# special-casing so the next object (the coffee machine, per the user's own
-# "let's start with the cup" ask) is a one-line addition here plus its own
-# _build_*_object() function, not a rewrite of this loop.
-_KITCHEN_DYNAMIC_MATERIALS = {"FrontColorcup"}
 
 
 # Simple box colliders standing in for the imported kitchen's own (unusable
@@ -804,46 +704,11 @@ _KITCHEN_WALL_THICKNESS = 0.12
 # counter and the island along the shallow stretch -- the user's own report
 # ("robot cannot enter from the fridge side"). Two boxes matching the real
 # footprint (small pad beyond each measured edge) instead of one oversized
-# rectangle. z1=2.5 on both runs originally spanned from the floor clean
-# through the base cabinets, the countertop, *and* the wall cabinets above
-# it as one solid block -- deliberately, to stop the robot walking through
-# any of it. That went uncorrected at the time (unlike the island's own z1,
-# see its comment below) because nothing needed to physically touch this
-# counter's own *surface* until the coffee machine workflow's own
-# place-down did -- confirmed live: a cup placed at the counter's real,
-# measured height (0.909, see CUP_OBJECT_POS's own comment) came out ~14cm
-# deep inside this box's old solid interior, and the resulting shove sent
-# it flying across the room instead of resting on the counter. This splits
-# each run into its own counter-height slab (matching the island's own
-# 0.91) plus a separate wall-cabinet slab starting at 1.4 -- a typical
-# countertop-to-wall-cabinet clearance, and more than enough for this rig's
-# own reach -- so there's an open gap right at the counter surface for
-# something to actually rest in.
-_KITCHEN_WEST_COUNTER_SHALLOW_COUNTER_BOUNDS = ((-3.6, -2.85), (1.6, 3.9), (0.0, 0.91))
-_KITCHEN_WEST_COUNTER_SHALLOW_CABINET_BOUNDS = ((-3.6, -2.85), (1.6, 3.9), (1.4, 2.5))
-_KITCHEN_WEST_COUNTER_DEEP_COUNTER_BOUNDS = ((-3.6, -1.9), (3.9, 4.65), (0.0, 0.91))
-_KITCHEN_WEST_COUNTER_DEEP_CABINET_BOUNDS = ((-3.6, -1.9), (3.9, 4.65), (1.4, 2.5))
-# z1=1.0 here used to be a rough guess, well above the island's own real
-# countertop mesh (Cozinha_Ilha_Madeira_Bancada_280x50cm / the marble slab
-# it shares with the west counter, Cozinha_Bancada_Marmore_Biancone_120cm --
-# both measured, top face at z=0.909). Harmless while this box only had to
-# stop the robot from walking through the island -- but cup_object
-# (urdf_to_mjcf.py's _build_cup_object(), placed at the counter's real
-# surface height) rested with its collision cylinder's bottom at z=0.904,
-# which put nearly the whole cylinder *inside* this box's old top. MuJoCo's
-# contact solver resolved that overlap by firing the cup straight up on the
-# very first step -- reported live as "the cup is way up in the air". 0.91
-# (a hair above the measured 0.909) leaves only ~5mm of harmless overlap
-# instead.
-_KITCHEN_ISLAND_BOUNDS = ((-1.95, 1.0), (1.6, 3.0), (0.0, 0.91))
+# rectangle.
+_KITCHEN_WEST_COUNTER_SHALLOW_BOUNDS = ((-3.6, -2.85), (1.6, 3.9), (0.0, 2.5))
+_KITCHEN_WEST_COUNTER_DEEP_BOUNDS = ((-3.6, -1.9), (3.9, 4.65), (0.0, 2.5))
+_KITCHEN_ISLAND_BOUNDS = ((-1.95, 1.0), (1.6, 3.0), (0.0, 1.0))
 _KITCHEN_NORTH_RUN_BOUNDS = ((-1.85, 0.85), (3.8, 6.0), (0.0, 2.9))
-# The center table + its surrounding chairs (all exported under the shared
-# "Cadeira_Mesa__010_*" materials -- combined bounding footprint of all
-# three, measured off the raw meshes) had no collision proxy at all until
-# now -- reported live as "the robot can walk into the chairs". A single
-# box over the whole cluster, same simplification as every other furniture
-# group here.
-_KITCHEN_CENTER_TABLE_BOUNDS = ((-1.75, 0.77), (1.16, 1.85), (0.0, 0.86))
 
 
 def _box_geom(name: str, bounds: tuple) -> str:
@@ -863,41 +728,10 @@ def _build_kitchen_collision_proxy() -> str:
         f'  <geom name="kitchen_wall_north" type="box" group="3" pos="{cx} {y1} {cz}" size="{hx + t} {t} {hz}" contype="1" conaffinity="1"/>',
         f'  <geom name="kitchen_wall_east" type="box" group="3" pos="{x1} {cy} {cz}" size="{t} {hy + t} {hz}" contype="1" conaffinity="1"/>',
         f'  <geom name="kitchen_wall_west" type="box" group="3" pos="{x0} {cy} {cz}" size="{t} {hy + t} {hz}" contype="1" conaffinity="1"/>',
-        # A flat slab under the whole room, top face at z=0 (the imported
-        # floor mesh's own height, see convert_kitchen_obj.py's own comment
-        # on why it's rolled to sit there). The comment that used to sit
-        # above _build_pickup_object() already named this floor's own bit
-        # (4, distinct from the walls/counters' bit 1) -- that geom just
-        # never actually existed until now, confirmed live (and via headless
-        # sim: pickup_object and a dropped/released cup_object both
-        # free-fall clean through z=0 forever, since the only collision
-        # volumes in this proxy were the counters/walls). contype/
-        # conaffinity=4, NOT the walls/counters' bit 1: bit 1 is what the
-        # robot's own body collides against (contype=2/conaffinity=1, see
-        # this file's collision-bitmask comment), and the robot's own base
-        # collision mesh -- unlike the drive wheels, which already had floor
-        # collision explicitly disabled -- turns out to dip well below z=0
-        # (it's centered near its body's own local pos, ~15cm below the
-        # nominal ground height, with a large bounding radius covering the
-        # whole wheel-well area). Reusing bit 1 here put that mesh into a
-        # ~15cm interpenetration with this new floor the instant it existed,
-        # which the solver fought by shoving back hard enough to cancel out
-        # nearly all of WASD's own drive force -- reported live as "the
-        # wheels spin but the robot doesn't move." Bit 4 is exactly the
-        # isolated bit dynamic objects already carry in their own
-        # conaffinity (see PICKUP_OBJECT_RGBA's/CUP_OBJECT_RGBA's own
-        # contype="8" conaffinity="5" = bits 1+4) for precisely this
-        # purpose: land on the floor without the robot's own body ever
-        # touching it, since the robot's height is fixed by its own virtual
-        # joint regardless of floor contact anyway (see resolve_urdf()).
-        f'  <geom name="kitchen_floor" type="box" group="3" pos="{cx} {cy} {-0.05}" size="{hx + t} {hy + t} 0.05" contype="4" conaffinity="4"/>',
-        _box_geom("kitchen_west_counter_shallow_counter", _KITCHEN_WEST_COUNTER_SHALLOW_COUNTER_BOUNDS),
-        _box_geom("kitchen_west_counter_shallow_cabinet", _KITCHEN_WEST_COUNTER_SHALLOW_CABINET_BOUNDS),
-        _box_geom("kitchen_west_counter_deep_counter", _KITCHEN_WEST_COUNTER_DEEP_COUNTER_BOUNDS),
-        _box_geom("kitchen_west_counter_deep_cabinet", _KITCHEN_WEST_COUNTER_DEEP_CABINET_BOUNDS),
+        _box_geom("kitchen_west_counter_shallow", _KITCHEN_WEST_COUNTER_SHALLOW_BOUNDS),
+        _box_geom("kitchen_west_counter_deep", _KITCHEN_WEST_COUNTER_DEEP_BOUNDS),
         _box_geom("kitchen_island", _KITCHEN_ISLAND_BOUNDS),
         _box_geom("kitchen_north_run", _KITCHEN_NORTH_RUN_BOUNDS),
-        _box_geom("kitchen_center_table", _KITCHEN_CENTER_TABLE_BOUNDS),
     ]
     return "\n".join(lines)
 
@@ -1407,11 +1241,7 @@ def main() -> None:
     # Added *after* the blanket gravcomp injection above, deliberately: this
     # is a normal passive prop, not a robot link fighting a placeholder
     # position-gain -- it should fall/rest under ordinary gravity, not float.
-    cup_asset_xml, cup_body_xml = _build_cup_object()
-    mjcf_text = mjcf_text.replace("<asset>", "<asset>\n" + cup_asset_xml, 1)
-    mjcf_text = mjcf_text.replace(
-        "</worldbody>", f"{_build_pickup_object()}\n{cup_body_xml}\n</worldbody>", 1
-    )
+    mjcf_text = mjcf_text.replace("</worldbody>", f"{_build_pickup_object()}\n</worldbody>", 1)
 
     # Lift sleeve: a plain <geom>, added directly inside base_link's own
     # <body> block (right after its own two mesh geoms, the last thing
@@ -1436,6 +1266,7 @@ def main() -> None:
     # as every other load in this script.
     staging_model = mujoco.MjModel.from_xml_path(str(OUTPUT_MJCF_PATH))
     mjcf_text = mjcf_text.replace("</mujoco>", _build_grasp_weld(staging_model) + "\n</mujoco>")
+    mjcf_text = mjcf_text.replace("</mujoco>", _build_manual_grip_welds() + "\n</mujoco>")
     OUTPUT_MJCF_PATH.write_text(mjcf_text)
 
     # Verify the saved MJCF is loadable standalone before declaring success.
