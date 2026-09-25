@@ -93,18 +93,28 @@ const WRIST_B_RATE = 0.8; // rad/s while V or B is held ("Revolute 43")
 const LEFT_MIRROR_SIGN = -1;
 
 // Manual grip (both hands): holding it closed near the object grabs it with
-// a weld (see MANUAL_GRIP_ANCHOR_BODY_RIGHT/LEFT and
-// grasp_weld_manual_right/left's own comment in
-// model/scripts/urdf_to_mjcf.py for why this needs its own pair of welds,
-// computed live, rather than reusing Pick & Place's own baked one) --
-// finger-contact alone doesn't reliably hold anything with this hand (the
-// thumb chain doesn't oppose the other four fingers regardless of joint
-// values, see PICK_FINGER_JOINTS' own comment), so without a weld a
-// "grabbed" object would just slide free the moment the arm moved.
+// a kinematic follow (applyGripPose below), not an equality weld -- this
+// engine build's JS bindings crash on any access to a boolean-typed
+// mjData/mjModel array, which is exactly what the weld-enable mechanism
+// (data.eq_active) is, so a weld-based design isn't usable here at all (see
+// applyGripPose's own comment). Finger-contact alone doesn't reliably hold
+// anything with this hand either (the thumb chain doesn't oppose the other
+// four fingers regardless of joint values, see PICK_FINGER_JOINTS' own
+// comment), so without the kinematic follow a "grabbed" object would just
+// slide free the moment the arm moved.
 const GRIP_RATE = 1.2; // 0..1 (open..closed) per second while held
 const GRIP_ENGAGE_AT = 0.8; // grip fraction above which closing near the object grabs it
 const GRIP_RELEASE_AT = 0.2; // grip fraction below which it lets go
-const GRIP_RADIUS = 0.2; // m -- how close the grip anchor must be to the object to grab it (loose: there's no on-screen distance readout, so manual driving/positioning is imprecise)
+const GRIP_RADIUS = 0.1; // m -- how close the grip anchor must be to the object to grab it. Was 0.2 ("loose: there's no on-screen distance readout") -- reported live as grabbing objects from noticeably far away, which combined with GRIP_SNUG_DIST's own old absence left a large, odd-looking gap between the hand and whatever it grabbed for the rest of the hold.
+// The hold itself is a kinematic follow (applyGripPose) that freezes
+// whatever the anchor-to-object offset happened to be *at the moment of
+// grab* -- so grabbing from anywhere within GRIP_RADIUS (up to 20cm, before
+// the tightening above) could freeze in a correspondingly large, permanent
+// gap for the whole hold, not just a one-off inaccuracy. Clamping the
+// captured relPos's own magnitude (direction preserved, distance capped)
+// guarantees a snug-looking hold regardless of exactly how close the grab
+// itself was, on top of GRIP_RADIUS's own tightening above.
+const GRIP_SNUG_DIST = 0.05; // m -- max allowed anchor-to-object distance once grabbed
 // Which of base_link's own local axes points where the robot actually
 // faces -- see getBodyAxisXY's comment. Confirmed empirically (not
 // guessed): local X is the line straight through both hands (i.e. side to
@@ -208,17 +218,7 @@ const FPP_MAX_YAW = (110 * Math.PI) / 180;
 const FPP_MIN_PITCH = (-70 * Math.PI) / 180; // look down
 const FPP_MAX_PITCH = (60 * Math.PI) / 180; // look up
 const FPP_LOOK_SENSITIVITY = 0.006; // radians per pixel of drag
-// Height of the head's own mesh above base_link, measured directly (not
-// guessed): the head *body*'s own xpos is not usable here -- like several
-// other links from this CAD export, face_cover_3_1's body origin sits
-// nearly 1.3m away from where its mesh actually renders (a large local
-// origin-vs-geometry offset baked into the raw export), landing camera
-// position calculations that used it up near/above the room's own ceiling
-// height. That's exactly why FPP previously showed mostly wall-tops and
-// ceiling void. base_link doesn't have this problem (verified: its body
-// origin and its geometry agree), so FPP is mounted a fixed, measured
-// height above *that* instead.
-const FPP_EYE_HEIGHT = 1.5; // m above base_link
+const FPP_FORWARD_CLEARANCE = 0.22; // m -- clears the head geom's own ~0.158m bounding radius, see the render loop's own comment
 // Center Stage's own default framing -- reused both at startup and to
 // restore the view when switching back from a corner/FPP view (see the
 // render loop's isOrbitView handling: OrbitControls.update() re-derives its
@@ -248,11 +248,10 @@ function lerpArr(a: number[], b: number[], t: number): number[] {
   return a.map((v, i) => v + (b[i] - v) * t);
 }
 
-// wxyz quaternion helpers for the manual-grip weld's relpose, computed live
-// -- same math as urdf_to_mjcf.py's own _quat_mul()/quat_conj(), used there
-// to bake grasp_weld's relpose offline; needed here at runtime instead
-// because a manual grab can happen from any pose, not one fixed one (see
-// GRIP_RATE's own comment).
+// wxyz quaternion helpers for the kinematic-follow grip's relpose (see
+// GRIP_RATE's own comment), computed live since a grab -- manual or the
+// Workflow's own scripted one -- can happen from any pose, not one fixed
+// one.
 function quatConj(q: [number, number, number, number]): [number, number, number, number] {
   return [q[0], -q[1], -q[2], -q[3]];
 }
@@ -278,45 +277,171 @@ function quatMul(
 // explicit params here rather than threading real types through --
 // TypeScript infers `unknown[]` for a plain Array.from(any) in some
 // overload-resolution cases, which is what this sidesteps.
+// Standard rotation-matrix -> quaternion (wxyz, matching MuJoCo's own
+// convention) conversion -- needed because MjData exposes geom_xmat (a 3x3
+// per geom) but no geom_xquat. See RIGHT_GRIP_ANCHOR_GEOM's own comment for
+// why the grip anchor has to be a geom, not a body, in the first place.
+function mat3ToQuat(m: Float32Array | Float64Array, base: number): [number, number, number, number] {
+  const m00 = m[base], m01 = m[base + 1], m02 = m[base + 2];
+  const m10 = m[base + 3], m11 = m[base + 4], m12 = m[base + 5];
+  const m20 = m[base + 6], m21 = m[base + 7], m22 = m[base + 8];
+  const trace = m00 + m11 + m22;
+  if (trace > 0) {
+    const s = 0.5 / Math.sqrt(trace + 1.0);
+    return [0.25 / s, (m21 - m12) * s, (m02 - m20) * s, (m10 - m01) * s];
+  } else if (m00 > m11 && m00 > m22) {
+    const s = 2.0 * Math.sqrt(1.0 + m00 - m11 - m22);
+    return [(m21 - m12) / s, 0.25 * s, (m01 + m10) / s, (m02 + m20) / s];
+  } else if (m11 > m22) {
+    const s = 2.0 * Math.sqrt(1.0 + m11 - m00 - m22);
+    return [(m02 - m20) / s, (m01 + m10) / s, 0.25 * s, (m12 + m21) / s];
+  } else {
+    const s = 2.0 * Math.sqrt(1.0 + m22 - m00 - m11);
+    return [(m10 - m01) / s, (m02 + m20) / s, (m12 + m21) / s, 0.25 * s];
+  }
+}
+
+// anchorGeom is a GEOM id, not a body id -- see RIGHT_GRIP_ANCHOR_GEOM's own
+// comment for why (every fingertip/palm body in this CAD export has its own
+// origin sitting 0.7-0.9m from where its mesh actually renders; geom_xpos/
+// geom_xmat, unlike body xpos/xmat, already account for a geom's own local
+// pos/mat offset within its body, giving the mesh's real rendered pose).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function computeGripRelpose(data: any, anchorBody: number, objBody: number) {
-  const ax = data.xpos[anchorBody * 3];
-  const ay = data.xpos[anchorBody * 3 + 1];
-  const az = data.xpos[anchorBody * 3 + 2];
+function computeGripRelpose(data: any, anchorGeom: number, objBody: number) {
+  const ax = data.geom_xpos[anchorGeom * 3];
+  const ay = data.geom_xpos[anchorGeom * 3 + 1];
+  const az = data.geom_xpos[anchorGeom * 3 + 2];
   const dx = data.xpos[objBody * 3] - ax;
   const dy = data.xpos[objBody * 3 + 1] - ay;
   const dz = data.xpos[objBody * 3 + 2] - az;
-  const m = anchorBody * 9;
+  const m = anchorGeom * 9;
   // R^T * d: R is row-major, so column i is [R[i], R[3+i], R[6+i]], and
   // (R^T*d)'s row i is that column dotted with d.
   const relPos: [number, number, number] = [
-    data.xmat[m] * dx + data.xmat[m + 3] * dy + data.xmat[m + 6] * dz,
-    data.xmat[m + 1] * dx + data.xmat[m + 4] * dy + data.xmat[m + 7] * dz,
-    data.xmat[m + 2] * dx + data.xmat[m + 5] * dy + data.xmat[m + 8] * dz,
+    data.geom_xmat[m] * dx + data.geom_xmat[m + 3] * dy + data.geom_xmat[m + 6] * dz,
+    data.geom_xmat[m + 1] * dx + data.geom_xmat[m + 4] * dy + data.geom_xmat[m + 7] * dz,
+    data.geom_xmat[m + 2] * dx + data.geom_xmat[m + 5] * dy + data.geom_xmat[m + 8] * dz,
   ];
-  const q = anchorBody * 4;
-  const anchorQuat: [number, number, number, number] = [data.xquat[q], data.xquat[q + 1], data.xquat[q + 2], data.xquat[q + 3]];
+  const anchorQuat = mat3ToQuat(data.geom_xmat, m);
   const oq = objBody * 4;
   const objQuat: [number, number, number, number] = [data.xquat[oq], data.xquat[oq + 1], data.xquat[oq + 2], data.xquat[oq + 3]];
   const relQuat = quatMul(quatConj(anchorQuat), objQuat);
   return { relPos, relQuat };
 }
 
-// Scripted "Pick & Place" demo: drives to bench_n1 (where urdf_to_mjcf.py's
-// _build_pickup_object() spawns a small box), grabs it with the same right
-// arm/hand the wave gesture uses, carries it to bench_n2, and sets it down.
-// The six arm joint targets below were solved offline via numeric IK against
-// this same model (see model/scripts/urdf_to_mjcf.py's matching PICK_*
-// constants and _build_grasp_weld()'s own comment for the full derivation
-// and for why holding the object is a weld constraint, not finger contact
-// alone) -- this file's PICK_ARM_JOINTS/PICK_GRASP_QPOS/PICK_PREGRASP_QPOS
-// must stay byte-for-byte in sync with that script's copies, or the reach
-// will miss where the object actually is and/or land somewhere the
-// pre-baked weld offset doesn't match.
+// Caps a freshly-captured grip relPos's own distance at GRIP_SNUG_DIST,
+// preserving direction -- see that constant's own comment for why (grabbing
+// from anywhere within GRIP_RADIUS would otherwise freeze in whatever gap
+// existed at that exact moment, for the whole hold).
+function snugRelPos(relPos: [number, number, number]): [number, number, number] {
+  const dist = Math.hypot(relPos[0], relPos[1], relPos[2]);
+  if (dist <= GRIP_SNUG_DIST || dist === 0) return relPos;
+  const scale = GRIP_SNUG_DIST / dist;
+  return [relPos[0] * scale, relPos[1] * scale, relPos[2] * scale];
+}
+
+// Scripted "Workflow": drives to the counter's own coffee cup
+// (urdf_to_mjcf.py's CUP_OBJECT_POS), grabs it with the same right arm/hand
+// the wave gesture uses, then carries it over to the coffee machine and
+// stops there, still holding it -- see the Workflow dropdown's own comment
+// near the JSX for the option this drives.
+//
+// The six arm joint targets below were solved two different ways before
+// landing here, both offline against this same model:
+//  1. Pure kinematic IK (finger_tip_1 at the target position) -- looked
+//     right in a static mj_forward snapshot, but several joints (arm roll
+//     "Revolute 9", both wrist axes) turned out to have real per-joint
+//     torque limits (as low as +-15 N*m) that the *kinematic* solve had no
+//     way to know about, so the actual pose under gravity settled somewhere
+//     else entirely once simulated for real -- confirmed by holding each
+//     candidate target under actual dynamics for several seconds and
+//     comparing.
+//  2. Re-solved with the wrist axes ("Revolute 26"/"43") pinned to 0 --
+//     their own safe (empirically swept) holding range sits right around
+//     0 anyway -- and arm roll bounded to its own [-0.2, 0.2] safe zone,
+//     then verified by simulating the *actual* dynamics (not just
+//     kinematics) for 2500+ steps and checking the settled anchor position
+//     matches the intended grasp point. GRASP below is that verified pose;
+//     PREGRASP is just GRASP scaled by 0.6 (an intermediate "reaching, not
+//     yet at the object" pose -- doesn't need its own precise IK solve
+//     since it's a waypoint, not a grasp point).
 const PICK_ARM_JOINTS = ["Revolute 5", "Revolute 7", "Revolute 9", "Revolute 11", "Revolute 26", "Revolute 43"];
 const PICK_REST_QPOS = [0, 0, 0, 0, 0, 0];
-const PICK_PREGRASP_QPOS = [-0.5884, 0.8807, -0.1608, 0.0012, -0.1425, 0.3047];
-const PICK_GRASP_QPOS = [-0.5666, 0.9047, -0.1661, -0.0047, -0.1486, 0.1785];
+// Solved with a different objective than earlier attempts at this same
+// problem: instead of minimizing raw palm-to-cup distance (which kept
+// landing poses where the *forearm* ends up closer to the cup than the palm
+// does -- reported live as "picks up with its forearm/wrist," and verified
+// real: this rig's fingers, in most reaching poses, don't point at what the
+// palm is merely close to), this searches for where the palm's own local
+// +Z axis -- the direction its fingers actually extend along, measured
+// directly off finger_tip_1/2/thumb_knuckle_1's geom positions in the
+// palm's local frame -- points roughly *at* the cup, offset out from the
+// palm by about the fingers' closed reach (0.10m). That "virtual grasp
+// point," not the raw palm position, is what's minimized here. The result:
+// forearm_joint_1's own geoms settle ~3x farther from the cup than this
+// grasp point does (0.31m vs 0.10m, confirmed by simulating actual
+// dynamics for 6000+ steps, not a kinematic snapshot) -- the fingers, not
+// the forearm, are what's nearest the cup now, and the two contact points
+// that actually develop during the reach are both fingertips touching the
+// counter (checked directly). This also uses noticeably less waist bend
+// than the previous solve (~54 degrees vs ~75) and more shoulder-forward
+// rotation instead -- the user's own suggestion ("T to move arm forward")
+// -- while still settling the base within ~5cm of PICK_PARK_PICK under the
+// bend's reaction load (PICK_BEND_HOLD_KP). Every joint tracks its
+// commanded value within a few thousandths of a radian at that settle.
+const PICK_GRASP_QPOS = [-2.495845868805196, 0.4561463351982671, 0.0, -1.6365550289818054, 0.0, -0.012969195368815467];
+// Waist bend (Revolute 4, same joint/actuator as the F/R teleop -- see
+// BEND_RATE's own comment) that pairs with PICK_GRASP_QPOS above. Held at 0
+// through "reach" (the arm alone extends out toward the cup here -- the
+// visible "stretching forward" motion), then ramped up only during "lower"
+// once the arm is already fully extended, and held through
+// "close"/"settle"/"pullIn" before ramping back to upright during "lift" --
+// never left bent while walking. -0.934 rad (~54 degrees), comfortably
+// inside BEND_MIN (-pi/2) so it's within the same range a teleop user could
+// reach by hand.
+const PICK_GRASP_BEND = -0.934;
+// The arm's pose while actually driving to/from the coffee machine, held
+// through "lift"/"driveToCoffee1"/"driveToCoffee2". Elbow bent to ~90
+// degrees with the upper arm pulled back close to the body -- the user's
+// own ask, "like people bend their arm so coffee won't fall," and it
+// doubles as the fix for an earlier crash: an earlier, more outward-reaching
+// carry pose put a fingertip wide enough that it swept into the north-run
+// counter's own corner during a turn -- confirmed via headless sim, reported
+// live as "it crashes into the table." This pose keeps the whole arm's
+// swept envelope close to the chassis instead (re-verified collision-free
+// along the entire drive, not just the corner that broke before). The cup
+// rides along rigidly regardless of which pose the arm is in (see
+// applyGripPose), so it's carried at chest height here instead of down at
+// the hip.
+const PICK_CARRY_QPOS = [0.5, 0.2, 0.0, 1.5708, 0.0, 0.0];
+// Reach pose for setting the cup down once parked at PICK_COFFEE_PARK --
+// solved the same way as PICK_GRASP_QPOS (grasp-point-vs-forearm objective,
+// same method used to verify PICK_GRASP_QPOS: real dynamics, not a
+// kinematic snapshot), pairing with PICK_PLACE_BEND below. Settles the
+// grasp point within ~11.5cm of PICK_PLACE_TARGET (vs the old pose, which
+// used no bend at all and left the palm nowhere near the counter), with the
+// fingertips -- not the forearm -- the closest part to the target, same as
+// the pickup side.
+const PICK_PLACE_QPOS = [-1.858531326660775, 0.39707497009106385, 0.0, -0.7577017369007841, 0.0, 0.04444714196240446];
+// Waist bend for placement -- deliberately smaller than PICK_GRASP_BEND
+// (~35 degrees vs ~54): the user's own ask ("bend a little bit and place it
+// exact on table"), and this counter sits at the same height as the pickup
+// one, so less horizontal distance to close here means less bend needed.
+// Same ramp shape as PICK_GRASP_BEND: 0 through "lowerPlace" (arm extends
+// first), ramps up during "settlePlace", held through "placing"/"release",
+// back to 0 during "retractPlace".
+const PICK_PLACE_BEND = -0.61;
+// Where the cup actually ends up when placed -- on the counter surface
+// (z=0.909, the same measured marble-slab height CUP_OBJECT_POS in
+// urdf_to_mjcf.py uses, plus the cup's own half-height) just east of the
+// coffee machine's own footprint (x -3.48..-3.01, y 3.52..3.81 -- see that
+// script's own manifest measurements), not overlapping it. "placing" still
+// animates the cup here directly rather than trusting the arm's own joint
+// targets to land exactly on it -- PICK_PLACE_QPOS gets close (~11.5cm) but
+// not exact -- so this is what guarantees an exact, on-counter landing
+// spot; the animated distance is now short enough to read as the hand
+// setting the cup down, not a separate slide (see "placing"'s own comment).
+const PICK_PLACE_TARGET: [number, number, number] = [-2.95, 3.65, 0.952];
 // All 15 right-hand finger joints (4 fingers + thumb, 3 joints each). Each
 // one closes toward its own lower jnt_range limit and opens toward its
 // upper limit -- confirmed empirically, not assumed: sweeping each joint
@@ -343,13 +468,43 @@ const LEFT_FINGER_JOINTS = [
   "Revolute 79", "Revolute 80", "Revolute 81", "Revolute 82", "Revolute 83",
 ];
 // Where the base must be parked (world x, y, and a fixed heading) for
-// PICK_GRASP_QPOS to actually reach the object -- see
-// model/scripts/urdf_to_mjcf.py's PICK_PARK_POSE for the full derivation.
-// bench_n2's park spot is the same point mirrored in x (the two benches are
-// otherwise identical and identically-facing, see _build_room()).
-const PICK_PARK_PICK: [number, number] = [-3.0, 4.1];
-const PICK_PARK_PLACE: [number, number] = [3.0, 4.1];
-const PICK_PARK_YAW = Math.PI; // faces +Y (north), toward either bench
+// PICK_GRASP_QPOS to actually reach the cup -- east of the kitchen island,
+// facing west toward it (see getBodyAxisXY's own comment for why yaw=-pi/2
+// is "faces -X" on this rig, confirmed empirically the same way). Verified
+// clear of the island's own collision box with margin (headless sim: zero
+// base-vs-island contacts parked here).
+const PICK_PARK_PICK: [number, number] = [1.45, 1.939];
+const PICK_PARK_YAW = -Math.PI / 2;
+// Route from spawn (0,0) to PICK_PARK_PICK, as two waypoints rather than
+// one straight line -- a direct line clips the center table's own
+// collision box (_KITCHEN_CENTER_TABLE_BOUNDS in urdf_to_mjcf.py) once the
+// base's yaw has turned enough toward PICK_PARK_YAW along the way (checked
+// at yaw=-pi/2 specifically: ~15cm deep). Whether that turn has happened
+// yet by the time the base is actually near the table depends on timing
+// that isn't worth relying on -- these two waypoints instead keep x>=1.7
+// (clear of the table's own x<=0.77) until y is past the table's y<=1.85,
+// verified collision-free at every yaw the base could plausibly be at
+// along the way (0, +-pi/2), not just its final one.
+const PICK_WAYPOINT_EAST: [number, number] = [1.7, 0.0];
+const PICK_WAYPOINT_EAST_NORTH: [number, number] = [1.7, 2.2];
+// Route from the cup's park spot to the coffee machine, as two waypoints
+// rather than one straight line -- a direct line between them cuts straight
+// through the island's own collision box (checked: crosses it for roughly a
+// third of the distance). Route instead goes north along the open corridor
+// east of the island/north run (x=1.45 clears both the island's x<=1.0 and
+// the north run's x<=0.85 the whole way up), then west through the gap
+// between the island and the north run (y=3.0..3.8, clear of every counter
+// except the west counter's own shallow run, which only starts at
+// x<=-2.85 -- well past this waypoint's x=-2.4) to a stop point just east
+// of the coffee machine, still facing -X toward it. y=3.5 sits close to the
+// gap's own midpoint (3.4) -- centered, not hugging either edge, since the
+// north-run corner in particular has very little margin to spare (see
+// PICK_CARRY_QPOS's own comment: even a tucked arm, not just the chassis,
+// needs real clearance there). Both legs verified collision-free via
+// headless sim (stepped the whole route with the arm actually held at
+// PICK_CARRY_QPOS, zero robot-vs-kitchen contacts throughout, cup included).
+const PICK_WAYPOINT_NORTH: [number, number] = [1.45, 3.5];
+const PICK_COFFEE_PARK: [number, number] = [-2.4, 3.5];
 
 // Autopilot driving, used only by this scripted sequence (never WASD
 // teleop): plain world-frame position P-control with an acceleration ramp
@@ -375,33 +530,73 @@ const PICK_DRIVE_KP = 1.2;
 const PICK_DRIVE_MAX_SPEED = 1.4; // m/s
 const PICK_DRIVE_MAX_ACCEL = 1.2; // m/s^2
 const PICK_DRIVE_ARRIVE_DIST = 0.05; // m
+// Base XY position hold used only while bent forward (see PICK_GRASP_BEND's
+// own comment) -- stiffer than PICK_DRIVE_KP above since it's resisting a
+// sustained reaction load from the bend, not tracking a moving waypoint.
+// Without this the base drifts off PICK_PARK_PICK/PICK_COFFEE_PARK under
+// that load, which throws off every *_QPOS-relative reach math -- confirmed
+// via headless dynamics that PICK_DRIVE_KP's own 1.2 isn't stiff enough to
+// hold this against the bend (drifted ~0.75m over 6000 steps rather than
+// settling); 8.0 holds within a few cm.
+const PICK_BEND_HOLD_KP = 8.0;
+const PICK_DRIVE_TIMEOUT_S = 20; // s -- see the render loop's own comment on why a drive phase gets aborted, not left to spin forever, past this
 const PICK_YAW_KP = 3.0;
 const PICK_YAW_MAX_RATE = 1.5; // rad/s
 
 // Phase durations, in seconds of simulated time -- ticked once per physics
 // step inside the same catch-up loop as the wave gesture, for the same
 // reason (see waveElapsedS's own comment: immune to render-frame hitches by
-// construction, since nothing here reads wall-clock time).
-const PICK_REACH_S = 1.2; // rest -> pregrasp
-const PICK_LOWER_S = 0.9; // pregrasp -> grasp
-const PICK_CLOSE_S = 0.7; // fingers open -> closed
-const PICK_SETTLE_S = 0.3; // brief pause right after the weld grabs, before lifting
-const PICK_LIFT_S = 0.9; // grasp -> pregrasp, now holding the object
+// construction, since nothing here reads wall-clock time). REACH/LOWER/
+// SETTLE are all longer than a bare "looks fine in a screenshot" pass would
+// use -- these specific joints (see PICK_GRASP_QPOS's own comment on their
+// torque limits) take real seconds to actually settle into a commanded pose
+// under gravity, confirmed by holding one under actual dynamics and
+// watching the position error decay; cutting these too short captured the
+// grip relPose against a hand that was still mid-swing, which read live as
+// "it picks the cup up from way off from where it actually is." These
+// values are the shortest that still verified accurate in that same
+// headless check (a first pass roughly double these also worked, but read
+// live as "the workflow is stuck," since W/A/S/D and every other idle-gated
+// control are correctly locked out for its entire ~18s run -- see
+// PICK_DRIVE_TIMEOUT_S's own comment for the separate, real WASD bug this
+// was mixed up with).
+const PICK_REACH_S = 1.5; // rest -> grasp arm pose, bend still at 0 (the arm-stretch-forward motion)
+const PICK_LOWER_S = 1.5; // arm holds at grasp pose, bend ramps 0 -> PICK_GRASP_BEND (the final lean-in to touch)
+const PICK_CLOSE_S = 0.5; // fingers open -> closed
+const PICK_SETTLE_S = 1.2; // lets the arm actually finish settling before the grip is captured
+// Shortened from 0.5s now that PICK_GRASP_QPOS/PICK_GRASP_BEND land the palm
+// within a few cm of CUP_OBJECT_POS -- see "pullIn"'s own comment -- instead
+// of the ~0.3-0.6m gap the old no-bend pose left, which needed a slower,
+// more visible slide to not look like an outright teleport.
+const PICK_PULL_IN_S = 0.2;
+const PICK_LIFT_S = 1.2; // grasp -> carry pose, bend ramps back to 0, now holding the object
+const PICK_LOWER_PLACE_S = 1.5; // carry -> place arm pose, bend still at 0 (arm-stretch-forward, same as pickup)
+const PICK_SETTLE_PLACE_S = 1.0; // arm holds at place pose, bend ramps 0 -> PICK_PLACE_BEND
+// Shortened from 0.6s -- PICK_PLACE_QPOS/PICK_PLACE_BEND now land the grasp
+// point within ~11.5cm of PICK_PLACE_TARGET (see PICK_PLACE_QPOS's own
+// comment) instead of the old no-bend pose's much larger gap.
+const PICK_PLACING_S = 0.3;
 const PICK_RELEASE_S = 0.7; // fingers closed -> open
-const PICK_RETRACT_S = 1.2; // grasp -> rest
+const PICK_RETRACT_PLACE_S = 1.2; // place -> carry, arm withdrawing after letting go
 
 type PickPhase =
   | "idle"
-  | "driveToPick"
+  | "driveToPick1"
+  | "driveToPick2"
+  | "driveToPick3"
   | "reach"
   | "lower"
   | "close"
   | "settle"
+  | "pullIn"
   | "lift"
-  | "driveToPlace"
+  | "driveToCoffee1"
+  | "driveToCoffee2"
   | "lowerPlace"
+  | "settlePlace"
+  | "placing"
   | "release"
-  | "retract";
+  | "retractPlace";
 
 interface MujocoViewerProps {
   /** Enables orbit camera controls, WASD driving, the wave gesture, and the pause/reset/wave overlay. */
@@ -417,6 +612,7 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
   const [paused, setPaused] = useState(false);
   const [view, setView] = useState<ViewMode>("orbit");
   const [showGuide, setShowGuide] = useState(true);
+  const [workflowChoice, setWorkflowChoice] = useState("");
   const pausedRef = useRef(paused);
   const viewRef = useRef(view);
   const resetRef = useRef<() => void>(() => {});
@@ -573,6 +769,9 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         leftGripFraction = 0;
         rightGripEngaged = false;
         leftGripEngaged = false;
+        rightHeldBody = -1;
+        leftHeldBody = -1;
+        openBothHands();
       };
 
       // --- Teleop actuator lookups -------------------------------------
@@ -606,7 +805,19 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       const ACT_WRIST_B_L = actId("act_Revolute 64");
       const BASE_BODY = mujoco.mj_name2id(model, OBJ_BODY, "base_link");
       const canDrive = ACT_VX >= 0 && ACT_VY >= 0 && ACT_YAW >= 0 && BASE_BODY >= 0;
-      const canFpp = canDrive;
+      // face_cover_3_1's own body origin sits nearly 1.3m from where its mesh
+      // actually renders (see FPP_EYE_HEIGHT's old comment -- a large local-
+      // origin-vs-geometry offset baked into this CAD export), which used to
+      // be worked around by guessing a fixed height/forward offset above
+      // base_link instead. That guess put the FPP camera off to one side
+      // (reported live: "FPP is from the right side, not the robot's eye") --
+      // geom_xpos/geom_xmat (unlike body xpos/xmat) already account for a
+      // geom's own local pos/quat offset within its body, so they give the
+      // mesh's *actual* rendered pose directly, sidestepping the bad body
+      // origin entirely.
+      const HEAD_BODY = mujoco.mj_name2id(model, OBJ_BODY, "face_cover_3_1");
+      const HEAD_GEOM = HEAD_BODY >= 0 ? model.body_geomadr[HEAD_BODY] : -1;
+      const canFpp = canDrive && HEAD_GEOM >= 0;
       const canLift = ACT_LIFT >= 0;
       const LIFT_MIN = canLift ? model.actuator_ctrlrange[ACT_LIFT * 2] : 0;
       const LIFT_MAX = canLift ? model.actuator_ctrlrange[ACT_LIFT * 2 + 1] : 0;
@@ -645,7 +856,6 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
 
       // --- Pick & Place lookups ---------------------------------------
       const OBJ_JOINT = mujoco.mjtObj.mjOBJ_JOINT.value;
-      const OBJ_EQUALITY = mujoco.mjtObj.mjOBJ_EQUALITY.value;
       const jointId = (name: string): number => mujoco.mj_name2id(model, OBJ_JOINT, name);
       // NOTE: these joint-name arrays are also reused for jointId() lookups
       // below (bare "Revolute N"), so actId() itself takes the actuator's
@@ -668,9 +878,21 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         const jid = jointId(name);
         return jid >= 0 ? model.jnt_range[jid * 2 + 1] : 0;
       });
+      // qpos/dof addresses for the Workflow's per-substep finger pin (see
+      // that block's own comment) -- resolved once here by name instead of
+      // calling jointId() (a string lookup) 15 times every physics substep,
+      // which for a multi-second hold is a lot of repeated name lookups for
+      // an answer that never changes.
+      const PICK_FINGER_QPOSADR = PICK_FINGER_JOINTS.map((name) => {
+        const jid = jointId(name);
+        return jid >= 0 ? model.jnt_qposadr[jid] : -1;
+      });
+      const PICK_FINGER_DOFADR = PICK_FINGER_JOINTS.map((name) => {
+        const jid = jointId(name);
+        return jid >= 0 ? model.jnt_dofadr[jid] : -1;
+      });
       const YAW_JOINT = jointId("virtual_base_yaw");
       const YAW_QPOS_ADR = YAW_JOINT >= 0 ? model.jnt_qposadr[YAW_JOINT] : -1;
-      const EQ_GRASP_WELD = mujoco.mj_name2id(model, OBJ_EQUALITY, "grasp_weld");
       const PICKUP_OBJECT_JOINT = jointId("pickup_object_free");
       const PICKUP_OBJECT_DOF = PICKUP_OBJECT_JOINT >= 0 ? model.jnt_dofadr[PICKUP_OBJECT_JOINT] : -1;
 
@@ -690,47 +912,166 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
         return jid >= 0 ? model.jnt_range[jid * 2 + 1] : 0;
       });
       const PICKUP_OBJECT_BODY = mujoco.mj_name2id(model, OBJ_BODY, "pickup_object");
-      const RIGHT_GRIP_ANCHOR_BODY = mujoco.mj_name2id(model, OBJ_BODY, "finger_tip_1");
-      const LEFT_GRIP_ANCHOR_BODY = mujoco.mj_name2id(model, OBJ_BODY, "finger_tip_3");
-      const EQ_GRIP_RIGHT = mujoco.mj_name2id(model, OBJ_EQUALITY, "grasp_weld_manual_right");
-      const EQ_GRIP_LEFT = mujoco.mj_name2id(model, OBJ_EQUALITY, "grasp_weld_manual_left");
+      // The counter's own coffee cup (see CUP_OBJECT_POS in
+      // model/scripts/urdf_to_mjcf.py) -- a second, separate free body, not
+      // a reskin of pickup_object, so both can exist (and in principle be
+      // held one per hand) at once.
+      const CUP_OBJECT_JOINT = jointId("cup_object_free");
+      const CUP_OBJECT_DOF = CUP_OBJECT_JOINT >= 0 ? model.jnt_dofadr[CUP_OBJECT_JOINT] : -1;
+      const CUP_OBJECT_QPOS_ADR = CUP_OBJECT_JOINT >= 0 ? model.jnt_qposadr[CUP_OBJECT_JOINT] : -1;
+      const CUP_OBJECT_BODY = mujoco.mj_name2id(model, OBJ_BODY, "cup_object");
+      // Manual grip was originally pinned to pickup_object specifically;
+      // generalized into a list so grabbing checks whichever free body is
+      // actually closest. Holding is a kinematic follow (see
+      // applyGripPose below), not an equality constraint or finger
+      // contact -- see model/scripts/urdf_to_mjcf.py's own comment, right
+      // above where the manual-grip welds used to be declared, for why.
+      // Adding a third object (the coffee machine, per the user's own
+      // "let's start with the cup" ask) is one more entry here.
+      const GRABBABLE_OBJECTS = [
+        { body: PICKUP_OBJECT_BODY, dof: PICKUP_OBJECT_DOF, qposAdr: PICKUP_OBJECT_JOINT >= 0 ? model.jnt_qposadr[PICKUP_OBJECT_JOINT] : -1 },
+        { body: CUP_OBJECT_BODY, dof: CUP_OBJECT_DOF, qposAdr: CUP_OBJECT_QPOS_ADR },
+      ].filter((o) => o.body >= 0 && o.dof >= 0 && o.qposAdr >= 0);
+      // finger_tip_1/finger_tip_3's own body ORIGIN sits 0.7-0.9m from where
+      // their mesh actually renders -- confirmed not just for these two but
+      // for every single fingertip body in this hand rig (a systemic CAD-
+      // export quirk, the same class of bug FPP's own eye position had).
+      // Using body xpos/xmat as the grip anchor (the original design) meant
+      // every "snug" distance check was measured from an invisible point
+      // 0.7m+ from the hand, not from the hand itself -- reported live as
+      // "the gap between hand and cup is too much." geom_xpos/geom_xmat
+      // (indexed by GEOM id here, not body id) give the real mesh pose
+      // instead, same fix as HEAD_GEOM uses for the camera.
+      //
+      // The anchor itself is the palm (palm_right_1/palm_left_1), not a
+      // fingertip -- a held object snugged to a single fingertip still
+      // reads as "balanced on one finger," not "held in the hand," reported
+      // live as "the cup seems to be on the fingertips, it must be on the
+      // palm." Fingers close around wherever the object ends up regardless
+      // of which point on the hand it's snugged to (see fingerHold's own
+      // comment), so anchoring to the broader, more central palm mesh
+      // instead reads as the fingers actually wrapping around it.
+      const RIGHT_GRIP_ANCHOR_GEOM = mujoco.mj_name2id(model, OBJ_BODY, "palm_right_1") >= 0
+        ? model.body_geomadr[mujoco.mj_name2id(model, OBJ_BODY, "palm_right_1")]
+        : -1;
+      const LEFT_GRIP_ANCHOR_GEOM = mujoco.mj_name2id(model, OBJ_BODY, "palm_left_1") >= 0
+        ? model.body_geomadr[mujoco.mj_name2id(model, OBJ_BODY, "palm_left_1")]
+        : -1;
       const canGripRight =
-        ACT_PICK_FINGERS.every((i) => i >= 0) &&
-        PICKUP_OBJECT_BODY >= 0 &&
-        RIGHT_GRIP_ANCHOR_BODY >= 0 &&
-        EQ_GRIP_RIGHT >= 0 &&
-        PICKUP_OBJECT_DOF >= 0;
+        ACT_PICK_FINGERS.every((i) => i >= 0) && GRABBABLE_OBJECTS.length > 0 && RIGHT_GRIP_ANCHOR_GEOM >= 0;
       const canGripLeft =
-        ACT_LEFT_FINGERS.every((i) => i >= 0) &&
-        PICKUP_OBJECT_BODY >= 0 &&
-        LEFT_GRIP_ANCHOR_BODY >= 0 &&
-        EQ_GRIP_LEFT >= 0 &&
-        PICKUP_OBJECT_DOF >= 0;
+        ACT_LEFT_FINGERS.every((i) => i >= 0) && GRABBABLE_OBJECTS.length > 0 && LEFT_GRIP_ANCHOR_GEOM >= 0;
+      // Nearest grabbable object to `anchorBody`, excluding whatever the
+      // *other* hand is already holding (so both hands can each hold their
+      // own object, but not fight over one) -- null if nothing is within
+      // GRIP_RADIUS.
+      const findGrabTarget = (anchorGeom: number, excludeBody: number) => {
+        let best: { body: number; dof: number; qposAdr: number } | null = null;
+        let bestDist = GRIP_RADIUS;
+        for (const obj of GRABBABLE_OBJECTS) {
+          if (obj.body === excludeBody) continue;
+          const dist = Math.hypot(
+            data.geom_xpos[anchorGeom * 3] - data.xpos[obj.body * 3],
+            data.geom_xpos[anchorGeom * 3 + 1] - data.xpos[obj.body * 3 + 1],
+            data.geom_xpos[anchorGeom * 3 + 2] - data.xpos[obj.body * 3 + 2]
+          );
+          if (dist < bestDist) {
+            best = obj;
+            bestDist = dist;
+          }
+        }
+        return best;
+      };
+      // Kinematic follow: pose the held object at (anchor's current world
+      // pose) composed with the fixed relPos/relQuat captured at grab time
+      // -- see model/scripts/urdf_to_mjcf.py's own comment on why this
+      // replaced an equality-weld design. Inverse of computeGripRelpose's
+      // own math (relPos/relQuat are body1 expressed in body2/anchor's
+      // frame, so worldPos = anchorPos + anchorRot*relPos and worldQuat =
+      // anchorQuat*relQuat).
+      const applyGripPose = (
+        anchorGeom: number,
+        relPos: [number, number, number],
+        relQuat: [number, number, number, number],
+        qposAdr: number,
+        dof: number
+      ) => {
+        const ax = data.geom_xpos[anchorGeom * 3];
+        const ay = data.geom_xpos[anchorGeom * 3 + 1];
+        const az = data.geom_xpos[anchorGeom * 3 + 2];
+        const m = anchorGeom * 9;
+        data.qpos[qposAdr] =
+          ax + data.geom_xmat[m] * relPos[0] + data.geom_xmat[m + 1] * relPos[1] + data.geom_xmat[m + 2] * relPos[2];
+        data.qpos[qposAdr + 1] =
+          ay + data.geom_xmat[m + 3] * relPos[0] + data.geom_xmat[m + 4] * relPos[1] + data.geom_xmat[m + 5] * relPos[2];
+        data.qpos[qposAdr + 2] =
+          az + data.geom_xmat[m + 6] * relPos[0] + data.geom_xmat[m + 7] * relPos[1] + data.geom_xmat[m + 8] * relPos[2];
+        const anchorQuat = mat3ToQuat(data.geom_xmat, m);
+        const worldQuat = quatMul(anchorQuat, relQuat);
+        data.qpos[qposAdr + 3] = worldQuat[0];
+        data.qpos[qposAdr + 4] = worldQuat[1];
+        data.qpos[qposAdr + 5] = worldQuat[2];
+        data.qpos[qposAdr + 6] = worldQuat[3];
+        for (let k = 0; k < 6; k++) data.qvel[dof + k] = 0;
+      };
       const canPick =
         canDrive &&
         YAW_QPOS_ADR >= 0 &&
-        EQ_GRASP_WELD >= 0 &&
-        PICKUP_OBJECT_DOF >= 0 &&
+        CUP_OBJECT_DOF >= 0 &&
+        CUP_OBJECT_QPOS_ADR >= 0 &&
+        CUP_OBJECT_BODY >= 0 &&
+        RIGHT_GRIP_ANCHOR_GEOM >= 0 &&
         ACT_PICK_ARM.every((i) => i >= 0) &&
         ACT_PICK_FINGERS.every((i) => i >= 0);
       if (!canPick) {
-        // The "Pick & Place" button is always rendered (see the wave
-        // button's own precedent) and silently no-ops if unsupported --
-        // fine for an old build missing the feature entirely, but
-        // indistinguishable from "the button does nothing" if the loaded
-        // scene *should* support it and one lookup below just failed (e.g.
-        // a stale cached /mujoco/scene/humanoid.xml missing the object/weld
-        // a newer build added). Logged once at load time so that's not a
-        // silent dead end to debug from the user's report alone.
-        console.warn("[MujocoViewer] Pick & Place unavailable in this scene:", {
+        // The Workflow dropdown always renders (see the wave button's own
+        // precedent) and silently no-ops if unsupported -- fine for an old
+        // build missing the feature entirely, but indistinguishable from
+        // "the workflow does nothing" if the loaded scene *should* support
+        // it and one lookup below just failed (e.g. a stale cached
+        // /mujoco/scene/humanoid.xml missing the cup a newer build added).
+        // Logged once at load time so that's not a silent dead end to debug
+        // from the user's report alone.
+        console.warn("[MujocoViewer] Workflow unavailable in this scene:", {
           canDrive,
           YAW_QPOS_ADR,
-          EQ_GRASP_WELD,
-          PICKUP_OBJECT_DOF,
+          CUP_OBJECT_DOF,
+          CUP_OBJECT_QPOS_ADR,
+          CUP_OBJECT_BODY,
+          RIGHT_GRIP_ANCHOR_GEOM,
           missingArmActuators: PICK_ARM_JOINTS.filter((_, i) => ACT_PICK_ARM[i] < 0),
           missingFingerActuators: PICK_FINGER_JOINTS.filter((_, i) => ACT_PICK_FINGERS[i] < 0),
         });
       }
+
+      // Both hands' finger actuators default to ctrl=0 on load, same as
+      // every other actuator -- but 0 happens to equal *closed* for 14 of
+      // each hand's 15 finger joints (their own jnt_range is [0, hi], see
+      // PICK_FINGER_JOINTS' own comment: lo=closed, hi=open), while the
+      // thumb's own root joint (Revolute 48 / Revolute 69) has an
+      // asymmetric range that doesn't start at 0. qpos0 is 0 for all of
+      // them too (no <keyframe> sets otherwise), so on every load and
+      // reset the four fingers snap straight to fully closed while the
+      // thumb sits at a mid-range position instead of joining them --
+      // looking exactly like a fist that won't quite finish closing,
+      // reported as "it automatically tries to close its hands but
+      // something is stopping it." Fixed by explicitly starting both hands
+      // fully open -- qpos *and* ctrl together, so there's no first-frame
+      // snap in either direction -- right after load and after every
+      // reset (see resetRef.current above).
+      const openHandJoints = (joints: string[], acts: number[], openTarget: number[]) => {
+        for (let i = 0; i < joints.length; i++) {
+          const jid = jointId(joints[i]);
+          if (jid >= 0) data.qpos[model.jnt_qposadr[jid]] = openTarget[i];
+          if (acts[i] >= 0) data.ctrl[acts[i]] = openTarget[i];
+        }
+      };
+      const openBothHands = () => {
+        openHandJoints(PICK_FINGER_JOINTS, ACT_PICK_FINGERS, PICK_FINGER_OPEN);
+        openHandJoints(LEFT_FINGER_JOINTS, ACT_LEFT_FINGERS, LEFT_FINGER_OPEN);
+        mujoco.mj_forward(model, data);
+      };
+      openBothHands();
 
       const pressedKeys = new Set<string>();
 
@@ -794,6 +1135,27 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
       let leftGripFraction = 0;
       let rightGripEngaged = false;
       let leftGripEngaged = false;
+      let rightHeldBody = -1; // which GRABBABLE_OBJECTS entry (by body id) rightGripEngaged refers to, -1 = none
+      let leftHeldBody = -1;
+      // The rest of what's needed to kinematically hold that object every
+      // step (see applyGripPose) -- captured once at grab time, reused
+      // every frame until release. Placeholder values until the first
+      // grab; never read while *HeldBody is -1.
+      let rightHeldRelPos: [number, number, number] = [0, 0, 0];
+      let rightHeldRelQuat: [number, number, number, number] = [1, 0, 0, 0];
+      let rightHeldDof = -1;
+      let rightHeldQposAdr = -1;
+      let leftHeldRelPos: [number, number, number] = [0, 0, 0];
+      let leftHeldRelQuat: [number, number, number, number] = [1, 0, 0, 0];
+      let leftHeldDof = -1;
+      let leftHeldQposAdr = -1;
+      // Cup's own pose at the start of "pullIn" (still resting on the
+      // counter) or "placing" (wherever it was rigidly following the palm
+      // to) -- captured once when each phase begins, so that phase can
+      // smoothly blend the cup from there to its own target over its own
+      // duration. Reused across both phases since they never overlap.
+      let placeAnimStartPos: [number, number, number] = [0, 0, 0];
+      let placeAnimStartQuat: [number, number, number, number] = [1, 0, 0, 0];
 
       // FPP head look-around: drag to turn the head like OrbitControls'
       // drag-to-orbit, just clamped to a human-ish range and re-centered
@@ -857,18 +1219,20 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
           pickRef.current = () => {
             if (pickPhase === "idle") {
               // A manually-grabbed object (see canGripRight/Left above)
-              // would otherwise get dragged along through this whole
-              // sequence attached to whichever hand grabbed it, fighting
-              // Pick & Place's own separate weld on the same object.
-              if (rightGripEngaged && EQ_GRIP_RIGHT >= 0) {
-                data.eq_active[EQ_GRIP_RIGHT] = 0;
+              // would otherwise keep getting kinematically pinned to
+              // whichever hand grabbed it (see applyGripPose) all through
+              // this workflow's own reach for the cup -- clearing the
+              // engaged flags first stops that (the workflow re-engages
+              // rightGripEngaged itself once it actually grasps the cup).
+              if (rightGripEngaged) {
                 rightGripEngaged = false;
+                rightHeldBody = -1;
               }
-              if (leftGripEngaged && EQ_GRIP_LEFT >= 0) {
-                data.eq_active[EQ_GRIP_LEFT] = 0;
+              if (leftGripEngaged) {
                 leftGripEngaged = false;
+                leftHeldBody = -1;
               }
-              pickPhase = "driveToPick";
+              pickPhase = "driveToPick1";
               pickPhaseElapsedS = 0;
               pickDriveVX = 0;
               pickDriveVY = 0;
@@ -948,6 +1312,10 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
           // why this replaced an earlier Shift-chord scheme.
           const keyR = (k: string) => pressedKeys.has(k);
           const keyL = (k: string) => pressedKeys.has(k);
+          // Set whenever this frame's substeps kinematically overrode
+          // anything (held-object follow or the Workflow's finger pin) --
+          // see the one mj_forward call after the loop, below, for why.
+          let neededForwardSync = false;
           while (remaining > 0) {
             // Lift column teleop (U/L) -- disabled mid-sequence (forced back
             // to LIFT_MIN instead, see the Pick & Place block below) so a
@@ -1069,37 +1437,36 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
 
             // Manual grip -- C/X right hand, [/] left. Ramps the
             // fraction like every other hold-to-move control, and separately
-            // handles engaging/releasing the weld on crossing
+            // handles grabbing/letting go on crossing
             // GRIP_ENGAGE_AT/GRIP_RELEASE_AT (see that constant's own
             // comment) -- the finger motion itself always runs regardless of
-            // whether anything is actually in reach to grab.
+            // whether anything is actually in reach to grab. Holding itself
+            // is a kinematic follow (applyGripPose, called every step while
+            // engaged), not an equality constraint -- see that function's
+            // own comment for why.
             if (canGripRight && pickPhase === "idle") {
               const input = (keyR("c") ? 1 : 0) - (keyR("x") ? 1 : 0);
               rightGripFraction = Math.max(0, Math.min(1, rightGripFraction + input * GRIP_RATE * dtS));
               const fingerTarget = lerpArr(PICK_FINGER_OPEN, PICK_FINGER_CLOSED, rightGripFraction);
               for (let i = 0; i < ACT_PICK_FINGERS.length; i++) data.ctrl[ACT_PICK_FINGERS[i]] = fingerTarget[i];
 
-              const dist = Math.hypot(
-                data.xpos[RIGHT_GRIP_ANCHOR_BODY * 3] - data.xpos[PICKUP_OBJECT_BODY * 3],
-                data.xpos[RIGHT_GRIP_ANCHOR_BODY * 3 + 1] - data.xpos[PICKUP_OBJECT_BODY * 3 + 1],
-                data.xpos[RIGHT_GRIP_ANCHOR_BODY * 3 + 2] - data.xpos[PICKUP_OBJECT_BODY * 3 + 2]
-              );
-              if (!rightGripEngaged && !leftGripEngaged && rightGripFraction > GRIP_ENGAGE_AT && dist < GRIP_RADIUS) {
-                const { relPos, relQuat } = computeGripRelpose(data, RIGHT_GRIP_ANCHOR_BODY, PICKUP_OBJECT_BODY);
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 3] = relPos[0];
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 4] = relPos[1];
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 5] = relPos[2];
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 6] = relQuat[0];
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 7] = relQuat[1];
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 8] = relQuat[2];
-                model.eq_data[EQ_GRIP_RIGHT * 11 + 9] = relQuat[3];
-                data.eq_active[EQ_GRIP_RIGHT] = 1;
-                for (let k = 0; k < 6; k++) data.qvel[PICKUP_OBJECT_DOF + k] = 0;
-                rightGripEngaged = true;
+              if (!rightGripEngaged && rightGripFraction > GRIP_ENGAGE_AT) {
+                const target = findGrabTarget(RIGHT_GRIP_ANCHOR_GEOM, leftHeldBody);
+                if (target) {
+                  const { relPos, relQuat } = computeGripRelpose(data, RIGHT_GRIP_ANCHOR_GEOM, target.body);
+                  rightGripEngaged = true;
+                  rightHeldBody = target.body;
+                  rightHeldRelPos = snugRelPos(relPos);
+                  rightHeldRelQuat = relQuat;
+                  rightHeldDof = target.dof;
+                  rightHeldQposAdr = target.qposAdr;
+                }
               } else if (rightGripEngaged && rightGripFraction < GRIP_RELEASE_AT) {
-                data.eq_active[EQ_GRIP_RIGHT] = 0;
                 rightGripEngaged = false;
+                rightHeldBody = -1;
               }
+              // Following the held object itself (applyGripPose) happens
+              // once, after mj_step, below -- see that block's own comment.
             }
             if (canGripLeft && pickPhase === "idle") {
               const input = (keyL("[") ? 1 : 0) - (keyL("]") ? 1 : 0);
@@ -1107,33 +1474,71 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
               const fingerTarget = lerpArr(LEFT_FINGER_OPEN, LEFT_FINGER_CLOSED, leftGripFraction);
               for (let i = 0; i < ACT_LEFT_FINGERS.length; i++) data.ctrl[ACT_LEFT_FINGERS[i]] = fingerTarget[i];
 
-              const dist = Math.hypot(
-                data.xpos[LEFT_GRIP_ANCHOR_BODY * 3] - data.xpos[PICKUP_OBJECT_BODY * 3],
-                data.xpos[LEFT_GRIP_ANCHOR_BODY * 3 + 1] - data.xpos[PICKUP_OBJECT_BODY * 3 + 1],
-                data.xpos[LEFT_GRIP_ANCHOR_BODY * 3 + 2] - data.xpos[PICKUP_OBJECT_BODY * 3 + 2]
-              );
-              if (!leftGripEngaged && !rightGripEngaged && leftGripFraction > GRIP_ENGAGE_AT && dist < GRIP_RADIUS) {
-                const { relPos, relQuat } = computeGripRelpose(data, LEFT_GRIP_ANCHOR_BODY, PICKUP_OBJECT_BODY);
-                model.eq_data[EQ_GRIP_LEFT * 11 + 3] = relPos[0];
-                model.eq_data[EQ_GRIP_LEFT * 11 + 4] = relPos[1];
-                model.eq_data[EQ_GRIP_LEFT * 11 + 5] = relPos[2];
-                model.eq_data[EQ_GRIP_LEFT * 11 + 6] = relQuat[0];
-                model.eq_data[EQ_GRIP_LEFT * 11 + 7] = relQuat[1];
-                model.eq_data[EQ_GRIP_LEFT * 11 + 8] = relQuat[2];
-                model.eq_data[EQ_GRIP_LEFT * 11 + 9] = relQuat[3];
-                data.eq_active[EQ_GRIP_LEFT] = 1;
-                for (let k = 0; k < 6; k++) data.qvel[PICKUP_OBJECT_DOF + k] = 0;
-                leftGripEngaged = true;
+              if (!leftGripEngaged && leftGripFraction > GRIP_ENGAGE_AT) {
+                const target = findGrabTarget(LEFT_GRIP_ANCHOR_GEOM, rightHeldBody);
+                if (target) {
+                  const { relPos, relQuat } = computeGripRelpose(data, LEFT_GRIP_ANCHOR_GEOM, target.body);
+                  leftGripEngaged = true;
+                  leftHeldBody = target.body;
+                  leftHeldRelPos = snugRelPos(relPos);
+                  leftHeldRelQuat = relQuat;
+                  leftHeldDof = target.dof;
+                  leftHeldQposAdr = target.qposAdr;
+                }
               } else if (leftGripEngaged && leftGripFraction < GRIP_RELEASE_AT) {
-                data.eq_active[EQ_GRIP_LEFT] = 0;
                 leftGripEngaged = false;
+                leftHeldBody = -1;
               }
+              // Following the held object itself (applyGripPose) happens
+              // once, after mj_step, below -- see that block's own comment.
             }
 
-            // Scripted Pick & Place: see the PICK_* constants' own comments
-            // for the phase list, timings, and the offline-solved arm
-            // targets. Advances pickPhaseElapsedS the same way waveElapsedS
-            // advances above, for the same frame-hitch-immunity reason.
+            // Scripted Workflow: see the PICK_* constants' own comments for
+            // the phase list, timings, and the offline-solved arm targets.
+            // Advances pickPhaseElapsedS the same way waveElapsedS advances
+            // above, for the same frame-hitch-immunity reason.
+            // Fingers are cosmetic once the grip is engaged (the cup is
+            // held by applyGripPose below, not finger contact), and get
+            // forced kinematically to fingerTarget every step from "close"
+            // through the end of the carry (see fingerHold's own comment) --
+            // set here so that override has this frame's actual target to
+            // use.
+            let fingerTarget = PICK_FINGER_OPEN;
+            let fingerHold = false;
+            // Set only during "pullIn"/"placing" -- a directly scripted cup
+            // position/orientation for this step (see those phases' own
+            // comments), applied after mj_step the same way fingerHold's
+            // override is.
+            let cupAnimPos: [number, number, number] | null = null;
+            let cupAnimQuat: [number, number, number, number] | null = null;
+            if (
+              canPick &&
+              pickPhase !== "idle" &&
+              (pickPhase === "driveToPick1" ||
+                pickPhase === "driveToPick2" ||
+                pickPhase === "driveToPick3" ||
+                pickPhase === "driveToCoffee1" ||
+                pickPhase === "driveToCoffee2") &&
+              pickPhaseElapsedS > PICK_DRIVE_TIMEOUT_S
+            ) {
+              // Safety net: the drive phases assume a specific starting
+              // position (spawn for driveToPick) and a specific, verified-
+              // clear route -- triggering the workflow from some other,
+              // unverified position/orientation (e.g. after driving around
+              // manually first) could in principle walk the straight-line
+              // P-controller into an obstacle it was never checked against,
+              // where it would just push against it forever, permanently
+              // blocking every other idle-gated control (WASD included)
+              // along with it. Aborting back to idle after a generous
+              // timeout means a bad start position degrades to "the
+              // workflow didn't finish," not "WASD is broken now."
+              rightGripEngaged = false;
+              rightHeldBody = -1;
+              pickPhase = "idle";
+              pickPhaseElapsedS = 0;
+              pickDriveVX = 0;
+              pickDriveVY = 0;
+            }
             if (canPick && pickPhase !== "idle") {
               // Yaw hold, active through every phase -- see PICK_YAW_KP's
               // own comment on why this can't be left uncontrolled.
@@ -1142,99 +1547,279 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
 
               const t = pickPhaseElapsedS;
               let armTarget = PICK_REST_QPOS;
-              let fingerTarget = PICK_FINGER_OPEN;
+              // Waist bend target -- see PICK_GRASP_BEND's own comment for
+              // the pickup side's ramp (0 through "reach", up during
+              // "lower", held, back to 0 during "lift") and PICK_PLACE_BEND's
+              // for the placement side's equivalent, smaller ramp. Defaults
+              // to upright; only those phases ever change it, same as
+              // PICK_REST_QPOS's default above.
+              let bendTarget = 0;
               let driveTarget: [number, number] | null = null;
+              let nextOnArrive: PickPhase | null = null;
 
-              if (pickPhase === "driveToPick") {
+              if (pickPhase === "driveToPick1") {
+                driveTarget = PICK_WAYPOINT_EAST;
+                nextOnArrive = "driveToPick2";
+              } else if (pickPhase === "driveToPick2") {
+                driveTarget = PICK_WAYPOINT_EAST_NORTH;
+                nextOnArrive = "driveToPick3";
+              } else if (pickPhase === "driveToPick3") {
                 driveTarget = PICK_PARK_PICK;
+                nextOnArrive = "reach";
               } else if (pickPhase === "reach") {
-                armTarget = lerpArr(PICK_REST_QPOS, PICK_PREGRASP_QPOS, smoothstep(t / PICK_REACH_S));
+                // Arm-only: stretches from resting straight out to the full
+                // grasp pose while the torso stays upright -- the visible
+                // "reaching forward" motion (the user's own ask: "arms
+                // stretch with T button... arm moves forward and reaches to
+                // cup"). The waist bend that finishes closing the gap to the
+                // cup happens next, in "lower", once the arm's already fully
+                // extended -- not blended in here -- so the two read as
+                // distinct motions instead of one folding blob.
+                armTarget = lerpArr(PICK_REST_QPOS, PICK_GRASP_QPOS, smoothstep(t / PICK_REACH_S));
+                bendTarget = 0;
                 if (t >= PICK_REACH_S) {
                   pickPhase = "lower";
                   pickPhaseElapsedS = 0;
                 }
               } else if (pickPhase === "lower") {
-                armTarget = lerpArr(PICK_PREGRASP_QPOS, PICK_GRASP_QPOS, smoothstep(t / PICK_LOWER_S));
+                // Arm holds at full extension; only the waist bends now, to
+                // bring the already-outstretched hand the rest of the way
+                // down to the cup.
+                armTarget = PICK_GRASP_QPOS;
+                bendTarget = PICK_GRASP_BEND * smoothstep(t / PICK_LOWER_S);
                 if (t >= PICK_LOWER_S) {
                   pickPhase = "close";
                   pickPhaseElapsedS = 0;
                 }
               } else if (pickPhase === "close") {
                 armTarget = PICK_GRASP_QPOS;
+                bendTarget = PICK_GRASP_BEND;
                 fingerTarget = lerpArr(PICK_FINGER_OPEN, PICK_FINGER_CLOSED, smoothstep(t / PICK_CLOSE_S));
+                fingerHold = true;
                 if (t >= PICK_CLOSE_S) {
                   pickPhase = "settle";
                   pickPhaseElapsedS = 0;
-                  // The instant the fingers finish closing: engage the
-                  // weld (see _build_grasp_weld()'s comment for why this
-                  // is a weld, not finger-contact friction) and clear any
-                  // residual velocity the object's own free joint picked
-                  // up while just sitting there, so it doesn't carry that
-                  // into the constraint at the moment it engages.
-                  data.eq_active[EQ_GRASP_WELD] = 1;
-                  for (let k = 0; k < 6; k++) data.qvel[PICKUP_OBJECT_DOF + k] = 0;
                 }
               } else if (pickPhase === "settle") {
                 armTarget = PICK_GRASP_QPOS;
+                bendTarget = PICK_GRASP_BEND;
                 fingerTarget = PICK_FINGER_CLOSED;
+                fingerHold = true;
                 if (t >= PICK_SETTLE_S) {
+                  // Only now -- once the arm has actually finished settling
+                  // into PICK_GRASP_QPOS, not the instant fingers finish
+                  // closing -- compute the grip (see PICK_REACH_S's own
+                  // comment on why: these joints take real seconds to
+                  // settle, and capturing early froze in whatever
+                  // still-mid-swing offset existed at that moment). Not
+                  // engaged yet, though -- even this bent-forward reach still
+                  // leaves the palm a few cm from the cup (see
+                  // PICK_GRASP_QPOS's own comment), so snapping straight to
+                  // the snugged relPos here would still show a small final
+                  // jump. "pullIn" (next) animates that last bit shut over
+                  // real time instead -- now short enough (PICK_PULL_IN_S) to
+                  // read as the hand settling onto the cup, not a slide.
+                  const { relPos, relQuat } = computeGripRelpose(data, RIGHT_GRIP_ANCHOR_GEOM, CUP_OBJECT_BODY);
+                  rightHeldRelPos = snugRelPos(relPos);
+                  rightHeldRelQuat = relQuat;
+                  rightHeldDof = CUP_OBJECT_DOF;
+                  rightHeldQposAdr = CUP_OBJECT_QPOS_ADR;
+                  placeAnimStartPos = [
+                    data.xpos[CUP_OBJECT_BODY * 3],
+                    data.xpos[CUP_OBJECT_BODY * 3 + 1],
+                    data.xpos[CUP_OBJECT_BODY * 3 + 2],
+                  ];
+                  placeAnimStartQuat = [
+                    data.xquat[CUP_OBJECT_BODY * 4],
+                    data.xquat[CUP_OBJECT_BODY * 4 + 1],
+                    data.xquat[CUP_OBJECT_BODY * 4 + 2],
+                    data.xquat[CUP_OBJECT_BODY * 4 + 3],
+                  ];
+                  pickPhase = "pullIn";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "pullIn") {
+                // Animates the cup from where it actually was resting
+                // (placeAnimStartPos/Quat, captured above) to the snugged
+                // grip pose -- recomputed live off the anchor every step,
+                // not just once, so this still lands correctly even though
+                // the arm/fingers are still finishing their own settling
+                // during this same window. Once the blend reaches 1, the
+                // cup is already exactly where applyGripPose would put it,
+                // so engaging rightGripEngaged then is a seamless handoff,
+                // not a second jump.
+                armTarget = PICK_GRASP_QPOS;
+                bendTarget = PICK_GRASP_BEND;
+                fingerTarget = PICK_FINGER_CLOSED;
+                fingerHold = true;
+                {
+                  const blend = smoothstep(t / PICK_PULL_IN_S);
+                  const am = RIGHT_GRIP_ANCHOR_GEOM * 9;
+                  const ax = data.geom_xpos[RIGHT_GRIP_ANCHOR_GEOM * 3];
+                  const ay = data.geom_xpos[RIGHT_GRIP_ANCHOR_GEOM * 3 + 1];
+                  const az = data.geom_xpos[RIGHT_GRIP_ANCHOR_GEOM * 3 + 2];
+                  const liveTargetPos: [number, number, number] = [
+                    ax +
+                      data.geom_xmat[am] * rightHeldRelPos[0] +
+                      data.geom_xmat[am + 1] * rightHeldRelPos[1] +
+                      data.geom_xmat[am + 2] * rightHeldRelPos[2],
+                    ay +
+                      data.geom_xmat[am + 3] * rightHeldRelPos[0] +
+                      data.geom_xmat[am + 4] * rightHeldRelPos[1] +
+                      data.geom_xmat[am + 5] * rightHeldRelPos[2],
+                    az +
+                      data.geom_xmat[am + 6] * rightHeldRelPos[0] +
+                      data.geom_xmat[am + 7] * rightHeldRelPos[1] +
+                      data.geom_xmat[am + 8] * rightHeldRelPos[2],
+                  ];
+                  const liveTargetQuat = quatMul(mat3ToQuat(data.geom_xmat, am), rightHeldRelQuat);
+                  cupAnimPos = lerpArr(placeAnimStartPos, liveTargetPos, blend) as [number, number, number];
+                  const rawQuat = lerpArr(placeAnimStartQuat, liveTargetQuat, blend);
+                  const qn = Math.hypot(rawQuat[0], rawQuat[1], rawQuat[2], rawQuat[3]) || 1;
+                  cupAnimQuat = [rawQuat[0] / qn, rawQuat[1] / qn, rawQuat[2] / qn, rawQuat[3] / qn];
+                }
+                if (t >= PICK_PULL_IN_S) {
+                  rightGripEngaged = true;
+                  rightGripFraction = 1;
+                  rightHeldBody = CUP_OBJECT_BODY;
                   pickPhase = "lift";
                   pickPhaseElapsedS = 0;
                 }
               } else if (pickPhase === "lift") {
-                armTarget = lerpArr(PICK_GRASP_QPOS, PICK_PREGRASP_QPOS, smoothstep(t / PICK_LIFT_S));
+                armTarget = lerpArr(PICK_GRASP_QPOS, PICK_CARRY_QPOS, smoothstep(t / PICK_LIFT_S));
+                bendTarget = PICK_GRASP_BEND * (1 - smoothstep(t / PICK_LIFT_S));
                 fingerTarget = PICK_FINGER_CLOSED;
+                fingerHold = true;
                 if (t >= PICK_LIFT_S) {
-                  pickPhase = "driveToPlace";
+                  pickPhase = "driveToCoffee1";
                   pickPhaseElapsedS = 0;
                 }
-              } else if (pickPhase === "driveToPlace") {
-                armTarget = PICK_PREGRASP_QPOS;
+              } else if (pickPhase === "driveToCoffee1") {
+                armTarget = PICK_CARRY_QPOS;
                 fingerTarget = PICK_FINGER_CLOSED;
-                driveTarget = PICK_PARK_PLACE;
+                fingerHold = true;
+                driveTarget = PICK_WAYPOINT_NORTH;
+                nextOnArrive = "driveToCoffee2";
+              } else if (pickPhase === "driveToCoffee2") {
+                armTarget = PICK_CARRY_QPOS;
+                fingerTarget = PICK_FINGER_CLOSED;
+                fingerHold = true;
+                driveTarget = PICK_COFFEE_PARK;
+                if (
+                  Math.hypot(
+                    PICK_COFFEE_PARK[0] - data.xpos[BASE_BODY * 3],
+                    PICK_COFFEE_PARK[1] - data.xpos[BASE_BODY * 3 + 1]
+                  ) < PICK_DRIVE_ARRIVE_DIST
+                ) {
+                  pickPhase = "lowerPlace";
+                  pickPhaseElapsedS = 0;
+                  pickDriveVX = 0;
+                  pickDriveVY = 0;
+                }
               } else if (pickPhase === "lowerPlace") {
-                armTarget = lerpArr(PICK_PREGRASP_QPOS, PICK_GRASP_QPOS, smoothstep(t / PICK_LOWER_S));
+                // Arm-only stretch toward the coffee-machine counter, same
+                // shape as "reach" -- bend stays at 0 while the arm extends.
+                armTarget = lerpArr(PICK_CARRY_QPOS, PICK_PLACE_QPOS, smoothstep(t / PICK_LOWER_PLACE_S));
+                bendTarget = 0;
                 fingerTarget = PICK_FINGER_CLOSED;
-                if (t >= PICK_LOWER_S) {
+                fingerHold = true;
+                if (t >= PICK_LOWER_PLACE_S) {
+                  pickPhase = "settlePlace";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "settlePlace") {
+                // Arm holds at full extension; the small placement bend (see
+                // PICK_PLACE_BEND's own comment) ramps in now to bring the
+                // hand the rest of the way down to the counter.
+                armTarget = PICK_PLACE_QPOS;
+                bendTarget = PICK_PLACE_BEND * smoothstep(t / PICK_SETTLE_PLACE_S);
+                fingerTarget = PICK_FINGER_CLOSED;
+                fingerHold = true;
+                if (t >= PICK_SETTLE_PLACE_S) {
+                  // Stop following the palm and hand off to "placing" instead
+                  // of just letting go here -- PICK_PLACE_QPOS/PICK_PLACE_BEND
+                  // get close (~11.5cm) but not exact, so releasing at this
+                  // exact point would leave the cup sitting slightly off from
+                  // a clean, on-counter spot rather than exactly on it.
+                  placeAnimStartPos = [
+                    data.xpos[CUP_OBJECT_BODY * 3],
+                    data.xpos[CUP_OBJECT_BODY * 3 + 1],
+                    data.xpos[CUP_OBJECT_BODY * 3 + 2],
+                  ];
+                  placeAnimStartQuat = [
+                    data.xquat[CUP_OBJECT_BODY * 4],
+                    data.xquat[CUP_OBJECT_BODY * 4 + 1],
+                    data.xquat[CUP_OBJECT_BODY * 4 + 2],
+                    data.xquat[CUP_OBJECT_BODY * 4 + 3],
+                  ];
+                  rightGripEngaged = false;
+                  rightHeldBody = -1;
+                  pickPhase = "placing";
+                  pickPhaseElapsedS = 0;
+                }
+              } else if (pickPhase === "placing") {
+                // Animates the cup the short remaining distance from wherever
+                // the palm left it to PICK_PLACE_TARGET, on the counter next
+                // to the machine -- a fixed world point, not a joint-space arm
+                // target, since PICK_PLACE_QPOS/PICK_PLACE_BEND land close but
+                // not exactly on it (see that constant's own comment).
+                // Orientation is left as it was at handoff (only position
+                // blends) -- the cup was already upright throughout the
+                // carry, nothing needs to rotate here.
+                armTarget = PICK_PLACE_QPOS;
+                bendTarget = PICK_PLACE_BEND;
+                fingerTarget = PICK_FINGER_CLOSED;
+                fingerHold = true;
+                {
+                  const blend = smoothstep(t / PICK_PLACING_S);
+                  cupAnimPos = lerpArr(placeAnimStartPos, PICK_PLACE_TARGET, blend) as [number, number, number];
+                  cupAnimQuat = placeAnimStartQuat;
+                }
+                if (t >= PICK_PLACING_S) {
                   pickPhase = "release";
                   pickPhaseElapsedS = 0;
-                  data.eq_active[EQ_GRASP_WELD] = 0;
                 }
               } else if (pickPhase === "release") {
-                armTarget = PICK_GRASP_QPOS;
+                armTarget = PICK_PLACE_QPOS;
+                bendTarget = PICK_PLACE_BEND;
                 fingerTarget = lerpArr(PICK_FINGER_CLOSED, PICK_FINGER_OPEN, smoothstep(t / PICK_RELEASE_S));
+                fingerHold = true;
                 if (t >= PICK_RELEASE_S) {
-                  pickPhase = "retract";
+                  pickPhase = "retractPlace";
                   pickPhaseElapsedS = 0;
                 }
-              } else if (pickPhase === "retract") {
-                armTarget = lerpArr(PICK_GRASP_QPOS, PICK_REST_QPOS, smoothstep(t / PICK_RETRACT_S));
+              } else if (pickPhase === "retractPlace") {
+                armTarget = lerpArr(PICK_PLACE_QPOS, PICK_CARRY_QPOS, smoothstep(t / PICK_RETRACT_PLACE_S));
+                bendTarget = PICK_PLACE_BEND * (1 - smoothstep(t / PICK_RETRACT_PLACE_S));
                 fingerTarget = PICK_FINGER_OPEN;
-                if (t >= PICK_RETRACT_S) {
+                fingerHold = true;
+                if (t >= PICK_RETRACT_PLACE_S) {
+                  // Workflow done -- sync the idle teleop targets to
+                  // PICK_CARRY_QPOS (where the arm actually is now) so
+                  // T/G/Y/H/I/K/O/P/J/N/V/B resume from here instead of
+                  // snapping the arm somewhere else on the first
+                  // idle-gated key.
+                  const [sf, sl, ar, el, wa, wb] = PICK_CARRY_QPOS;
+                  shoulderFwdAngle = sf;
+                  shoulderLatAngle = sl;
+                  armRollAngle = ar;
+                  elbowAngle = el;
+                  wristAAngle = wa;
+                  wristBAngle = wb;
+                  rightGripFraction = 0;
                   pickPhase = "idle";
                   pickPhaseElapsedS = 0;
-                  // The arm is now physically at PICK_REST_QPOS (all
-                  // zeros) -- sync the teleop targets to match so
-                  // T/G/Y/H/I/K/O/P/J/N/V/B resume from where the arm
-                  // actually is instead of jumping from a stale
-                  // pre-sequence value.
-                  shoulderFwdAngle = 0;
-                  shoulderLatAngle = 0;
-                  armRollAngle = 0;
-                  elbowAngle = 0;
-                  wristAAngle = 0;
-                  wristBAngle = 0;
                 }
               }
 
-              if (driveTarget) {
+              if (driveTarget && nextOnArrive) {
                 const ex = driveTarget[0] - data.xpos[BASE_BODY * 3 + 0];
                 const ey = driveTarget[1] - data.xpos[BASE_BODY * 3 + 1];
                 const dist = Math.hypot(ex, ey);
                 if (dist < PICK_DRIVE_ARRIVE_DIST) {
                   pickDriveVX = 0;
                   pickDriveVY = 0;
-                  pickPhase = pickPhase === "driveToPick" ? "reach" : "lowerPlace";
+                  pickPhase = nextOnArrive;
                   pickPhaseElapsedS = 0;
                 } else {
                   const desiredVX = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_DRIVE_KP * ex));
@@ -1243,6 +1828,43 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
                   pickDriveVX += Math.max(-maxDelta, Math.min(maxDelta, desiredVX - pickDriveVX));
                   pickDriveVY += Math.max(-maxDelta, Math.min(maxDelta, desiredVY - pickDriveVY));
                 }
+              } else if (driveTarget) {
+                // driveToCoffee2's own arrival is handled inline above (it
+                // needs to run the teleop-sync/release-to-idle logic, not
+                // just switch phases), but still needs the same P-control
+                // drive while en route.
+                const ex = driveTarget[0] - data.xpos[BASE_BODY * 3 + 0];
+                const ey = driveTarget[1] - data.xpos[BASE_BODY * 3 + 1];
+                const dist = Math.hypot(ex, ey);
+                if (dist < PICK_DRIVE_ARRIVE_DIST) {
+                  pickDriveVX = 0;
+                  pickDriveVY = 0;
+                } else {
+                  const desiredVX = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_DRIVE_KP * ex));
+                  const desiredVY = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_DRIVE_KP * ey));
+                  const maxDelta = PICK_DRIVE_MAX_ACCEL * dtS;
+                  pickDriveVX += Math.max(-maxDelta, Math.min(maxDelta, desiredVX - pickDriveVX));
+                  pickDriveVY += Math.max(-maxDelta, Math.min(maxDelta, desiredVY - pickDriveVY));
+                }
+              } else if (
+                pickPhase === "reach" || pickPhase === "lower" || pickPhase === "close" ||
+                pickPhase === "settle" || pickPhase === "pullIn" || pickPhase === "lift" ||
+                pickPhase === "lowerPlace" || pickPhase === "settlePlace" || pickPhase === "placing" ||
+                pickPhase === "release" || pickPhase === "retractPlace"
+              ) {
+                // See PICK_BEND_HOLD_KP's own comment -- these are the only
+                // phases that ever bend the waist, so they're the only ones
+                // that need this stiffer hold instead of a plain zero. Two
+                // different park spots to hold against depending on which
+                // side of the workflow this is.
+                const holdPark = pickPhase === "reach" || pickPhase === "lower" || pickPhase === "close" ||
+                  pickPhase === "settle" || pickPhase === "pullIn" || pickPhase === "lift"
+                  ? PICK_PARK_PICK
+                  : PICK_COFFEE_PARK;
+                const ex = holdPark[0] - data.xpos[BASE_BODY * 3 + 0];
+                const ey = holdPark[1] - data.xpos[BASE_BODY * 3 + 1];
+                pickDriveVX = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_BEND_HOLD_KP * ex));
+                pickDriveVY = Math.max(-PICK_DRIVE_MAX_SPEED, Math.min(PICK_DRIVE_MAX_SPEED, PICK_BEND_HOLD_KP * ey));
               } else {
                 pickDriveVX = 0;
                 pickDriveVY = 0;
@@ -1252,24 +1874,96 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
 
               for (let i = 0; i < ACT_PICK_ARM.length; i++) data.ctrl[ACT_PICK_ARM[i]] = armTarget[i];
               for (let i = 0; i < ACT_PICK_FINGERS.length; i++) data.ctrl[ACT_PICK_FINGERS[i]] = fingerTarget[i];
-              // Every PICK_*_QPOS arm target was solved at LIFT_MIN with the
-              // waist straight -- force both regardless of whatever the user
-              // last set with U/L/F/R.
+              // Every PICK_*_QPOS arm target was solved at LIFT_MIN -- force
+              // that regardless of whatever the user last set with U/L.
               if (canLift) {
                 liftHeight = LIFT_MIN;
                 data.ctrl[ACT_LIFT] = LIFT_MIN;
               }
+              // Waist bend now follows bendTarget (see PICK_GRASP_BEND's own
+              // comment) instead of being forced to 0 -- it's 0 outside
+              // "reach".."lift" anyway (bendTarget's own default above), so
+              // this still overrides whatever the user last set with F/R
+              // during every other phase, same as before.
               if (canBend) {
-                bendAngle = 0;
-                data.ctrl[ACT_BEND] = 0;
+                bendAngle = bendTarget;
+                data.ctrl[ACT_BEND] = bendTarget;
               }
 
               pickPhaseElapsedS += dtS;
             }
 
             mujoco.mj_step(model, data);
+
+            // Kinematically pin the right hand's fingers to fingerTarget
+            // instead of trusting their own actuators for the rest of this
+            // step -- these specific finger joints have been confirmed (via
+            // extended headless simulation) to slowly drift open under
+            // gravity at the grasp pose regardless of how long they're
+            // given to "settle": holding them via their normal position
+            // actuators there is not just slow to converge, it never
+            // converges. Since the cup itself is held by applyGripPose
+            // below, not finger contact, the fingers are purely cosmetic
+            // here and can be driven directly without affecting the hold.
+            // No mj_forward here (or after applyGripPose below) -- the
+            // *next* mj_step already recomputes forward kinematics from
+            // whatever qpos it's handed as the very first thing it does,
+            // same as if this were any other qpos edit between steps. An
+            // explicit mj_forward call per substep (there can be dozens per
+            // rendered frame -- see the catch-up loop's own comment) was
+            // pure wasted work that scaled with how many objects were held,
+            // permanently, from the moment anything was first grabbed --
+            // reported live as the whole page turning sluggish/unresponsive
+            // (WASD included) as soon as something was picked up. One
+            // mj_forward after the whole loop (below) is enough to make the
+            // very last correction visible to this frame's render.
+            if (fingerHold) {
+              for (let i = 0; i < PICK_FINGER_QPOSADR.length; i++) {
+                if (PICK_FINGER_QPOSADR[i] < 0) continue;
+                data.qpos[PICK_FINGER_QPOSADR[i]] = fingerTarget[i];
+                data.qvel[PICK_FINGER_DOFADR[i]] = 0;
+              }
+              neededForwardSync = true;
+            }
+
+            // Kinematic follow for whatever's currently grabbed (manual
+            // grip or the Workflow above) -- runs regardless of pickPhase
+            // now, since the Workflow can hold the cup through phases other
+            // than "idle" (see the "settle" phase above, and manual grip's
+            // own engage logic higher up, which no longer applies this
+            // itself -- see that block's own updated comment).
+            if (rightGripEngaged) {
+              applyGripPose(RIGHT_GRIP_ANCHOR_GEOM, rightHeldRelPos, rightHeldRelQuat, rightHeldQposAdr, rightHeldDof);
+              neededForwardSync = true;
+            }
+            if (leftGripEngaged) {
+              applyGripPose(LEFT_GRIP_ANCHOR_GEOM, leftHeldRelPos, leftHeldRelQuat, leftHeldQposAdr, leftHeldDof);
+              neededForwardSync = true;
+            }
+            // "pullIn"/"placing"'s own directly-scripted cup pose (see
+            // those phases' own comments) -- set instead of, not alongside,
+            // the two blocks above (neither is engaged during either
+            // phase).
+            if (cupAnimPos && cupAnimQuat) {
+              data.qpos[CUP_OBJECT_QPOS_ADR] = cupAnimPos[0];
+              data.qpos[CUP_OBJECT_QPOS_ADR + 1] = cupAnimPos[1];
+              data.qpos[CUP_OBJECT_QPOS_ADR + 2] = cupAnimPos[2];
+              data.qpos[CUP_OBJECT_QPOS_ADR + 3] = cupAnimQuat[0];
+              data.qpos[CUP_OBJECT_QPOS_ADR + 4] = cupAnimQuat[1];
+              data.qpos[CUP_OBJECT_QPOS_ADR + 5] = cupAnimQuat[2];
+              data.qpos[CUP_OBJECT_QPOS_ADR + 6] = cupAnimQuat[3];
+              for (let k = 0; k < 6; k++) data.qvel[CUP_OBJECT_DOF + k] = 0;
+              neededForwardSync = true;
+            }
+
             remaining -= timestepMs;
           }
+          // Exactly one forward pass for the whole frame (not one per
+          // substep -- see that loop's own comment) so the render below
+          // sees this frame's very last kinematic correction, not
+          // whatever mj_step's own internal forward pass computed just
+          // before it.
+          if (neededForwardSync) mujoco.mj_forward(model, data);
         } else {
           lastFrameTime = null;
         }
@@ -1302,29 +1996,37 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
             camera.lookAt(...preset.lookAt);
           }
         } else if (viewRef.current === "fpp" && canFpp) {
-          // FPP: camera mounted a fixed, measured height above base_link
-          // (see FPP_EYE_HEIGHT -- not the head body's own origin, which
-          // this CAD export doesn't place at the head's actual geometry).
-          // Base direction is "the direction WASD's W currently drives"
-          // (same getBodyAxisXY this frame's teleop above used), turned
-          // further by the head look-around drag (fppYaw/fppPitch, see the
-          // pointer handlers above) so it's not just a fixed forward-only
-          // view anymore. Built as an explicit (yaw, pitch) -> direction,
+          // FPP: camera mounted exactly at the head geom's own live world
+          // pose (data.geom_xpos/HEAD_GEOM -- see canFpp's own comment for
+          // why this, not base_link + a guessed height/forward offset, is
+          // what actually lands the camera at the robot's eye instead of
+          // off to one side). Look direction is still "the direction WASD's
+          // W currently drives" (same getBodyAxisXY this frame's teleop
+          // above used), turned further by the head look-around drag
+          // (fppYaw/fppPitch, see the pointer handlers above) -- there's no
+          // independent neck joint on this rig, so aiming still follows the
+          // base's own heading, only the camera's *position* comes from the
+          // head now. Built as an explicit (yaw, pitch) -> direction,
           // three.js's usual FPS-camera convention, rather than rotating
           // the forward vector by hand -- much harder to get a sign wrong.
-          const base = bodies[BASE_BODY];
-          if (base) {
-            const [fx, fy] = getBodyAxisXY(data.xmat, BASE_BODY, BASE_FORWARD_AXIS);
-            const baseYaw = Math.atan2(fx, -fy); // three.js horizontal forward (fx, -fy) -> angle
-            const totalYaw = baseYaw + fppYaw;
-            const cosPitch = Math.cos(fppPitch);
-            fppForward.set(Math.sin(totalYaw) * cosPitch, Math.sin(fppPitch), Math.cos(totalYaw) * cosPitch);
-            camera.position.copy(base.position);
-            camera.position.y += FPP_EYE_HEIGHT;
-            camera.position.addScaledVector(fppForward, 0.3);
-            fppLookAt.copy(camera.position).add(fppForward);
-            camera.lookAt(fppLookAt);
-          }
+          const [fx, fy] = getBodyAxisXY(data.xmat, BASE_BODY, BASE_FORWARD_AXIS);
+          const baseYaw = Math.atan2(fx, -fy); // three.js horizontal forward (fx, -fy) -> angle
+          const totalYaw = baseYaw + fppYaw;
+          const cosPitch = Math.cos(fppPitch);
+          fppForward.set(Math.sin(totalYaw) * cosPitch, Math.sin(fppPitch), Math.cos(totalYaw) * cosPitch);
+          getPosition(data.geom_xpos, HEAD_GEOM, camera.position);
+          // The head geom's own bounding radius is ~0.158m (measured) --
+          // sitting exactly at its center (as above) puts the camera inside
+          // its own mesh, which reads as a plain black view (looking at the
+          // inside of a shell, whatever isn't backface-culled sitting right
+          // up against the near clip plane). Nudged forward, along the
+          // level (unpitched) heading rather than the full look direction,
+          // so looking sharply up/down doesn't dive the camera into the
+          // ceiling/floor mesh instead -- comfortably past that radius.
+          camera.position.x += Math.sin(totalYaw) * FPP_FORWARD_CLEARANCE;
+          camera.position.z += Math.cos(totalYaw) * FPP_FORWARD_CLEARANCE;
+          fppLookAt.copy(camera.position).add(fppForward);
+          camera.lookAt(fppLookAt);
         }
 
         renderer.render(scene, camera);
@@ -1379,6 +2081,34 @@ export function MujocoViewer({ interactive = false, className }: MujocoViewerPro
             {opt.label}
           </option>
         ))}
+      </select>
+      {/* A trigger, not a persistent mode -- picking an action starts it
+          (pickRef.current(), the same scripted-sequence entry point the old
+          "Pick & Place" button used) and the select snaps straight back to
+          the placeholder, rather than staying "selected" on an action that
+          already ran. */}
+      <select
+        value={workflowChoice}
+        onChange={(e) => {
+          const choice = e.target.value;
+          // A focused <select> intercepts the W/A/S/D keys that WASD drive
+          // listens for as its own type-ahead ("jump to the option starting
+          // with this letter") on some browsers, before the page's own
+          // keydown handling ever sees them -- reported live as "WASD
+          // stopped working" right after picking a workflow. Blurring hands
+          // keyboard focus back to the page the instant a choice is made.
+          e.target.blur();
+          setWorkflowChoice("");
+          if (choice === "pickupCoffee") pickRef.current();
+        }}
+        className={clsx(buttonClass, "appearance-none pr-8")}
+      >
+        <option value="" className="bg-panel text-off-white">
+          Workflow…
+        </option>
+        <option value="pickupCoffee" className="bg-panel text-off-white">
+          Pick up cup → coffee machine
+        </option>
       </select>
     </>
   );
