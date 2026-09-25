@@ -1,14 +1,6 @@
 export const TOKEN_SYMBOL = "$";
 export const EARLY_WALLET_REWARD = 20;
 
-export const GPU_CATALOG = [
-  { type: "RTX 4090", vram: "24GB", pricePerHour: 4, desc: "Best for iterating on small fine-tunes and dataset debugging." },
-  { type: "A100 80GB", vram: "80GB", pricePerHour: 14, desc: "Full-scale training runs on your own manipulation datasets." },
-  { type: "H100", vram: "80GB", pricePerHour: 28, desc: "Fastest available — large batch VLA training and evaluation sweeps." },
-] as const;
-
-export type GpuType = (typeof GPU_CATALOG)[number]["type"];
-
 export const SKILLS_CATALOG = [
   { id: "pick-place", name: "Pick & Place", price: 15, category: "Manipulation", desc: "Grasp and place arbitrary small objects with visual servoing." },
   { id: "nav-indoor", name: "Indoor Navigation", price: 20, category: "Mobility", desc: "SLAM-based navigation and obstacle avoidance for indoor spaces." },

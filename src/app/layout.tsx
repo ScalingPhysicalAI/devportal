@@ -25,7 +25,7 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Starforge Developer Portal | Buildo Robot",
   description:
-    "Train, control, and deploy your Buildo robot. Connect a wallet, rent GPU compute, and buy skills — the developer platform for Starforge's Physical AI robots.",
+    "Train, control, and deploy your Buildo robot. Connect a wallet, test in simulation, and buy skills — the developer platform for Starforge's Physical AI robots.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

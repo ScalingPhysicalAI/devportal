@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDisconnect } from "wagmi";
+import { Menu, X } from "lucide-react";
 
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";
@@ -34,11 +35,9 @@ export function TopBar({ user, onToggleSidebar, sidebarOpen }: TopBarProps) {
           onClick={onToggleSidebar}
           aria-label={sidebarOpen ? "Close menu" : "Open menu"}
           aria-expanded={sidebarOpen}
-          className="flex h-8 w-8 shrink-0 flex-col items-center justify-center gap-1 rounded-sm border border-border-strong text-off-white/70 transition-colors hover:text-off-white hover:bg-white/[0.03] cursor-pointer"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-border-strong text-off-white/70 transition-colors hover:text-off-white hover:bg-white/[0.03] cursor-pointer"
         >
-          <span className={`h-px w-4 bg-current transition-transform ${sidebarOpen ? "translate-y-[3px] rotate-45" : ""}`} />
-          <span className={`h-px w-4 bg-current transition-opacity ${sidebarOpen ? "opacity-0" : ""}`} />
-          <span className={`h-px w-4 bg-current transition-transform ${sidebarOpen ? "-translate-y-[3px] -rotate-45" : ""}`} />
+          {sidebarOpen ? <X size={16} /> : <Menu size={16} />}
         </button>
         <Link href="/dashboard">
           <Logo />

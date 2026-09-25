@@ -17,9 +17,9 @@ const platformFeatures = [
   },
   {
     tag: "02",
-    title: "Compute",
-    body: "Rent GPU time from Starforge on demand — from a single RTX 4090 to a full A100/H100 training run.",
-    href: "/dashboard/gpu",
+    title: "Simulate",
+    body: "Test a trained skill in a full physics simulator before it ever touches real hardware.",
+    href: "/dashboard/simulate",
   },
   {
     tag: "03",
@@ -54,8 +54,8 @@ export default function LandingPage() {
               </h1>
               <p className="mt-6 max-w-md text-base leading-relaxed text-off-white/70">
                 The developer platform for Buildo — Starforge&apos;s Physical
-                AI robot. Train it on your own data, rent GPU compute, buy
-                skills, and get $20 credit for building early.
+                AI robot. Train it on your own data, test it in simulation,
+                buy skills, and get $20 credit for building early.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-4">
                 <Link href="/signup">
@@ -132,7 +132,7 @@ export default function LandingPage() {
               </h2>
               <p className="mt-5 max-w-lg mx-auto text-sm leading-relaxed text-off-white/70">
                 Early developer accounts are credited with 20$ credit — spend
-                it on GPU compute and robot skills anywhere in the portal.
+                it on robot skills anywhere in the portal.
               </p>
               <div className="mt-9 flex justify-center">
                 <Link href="/signup">
